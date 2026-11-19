@@ -1,13 +1,14 @@
 # Agent-Tool
 
-給 Google Antigravity 桌面版（App 2.33，Windows）用的兩個小工具：
+給 Google Antigravity 桌面版（App 2.33，Windows）與 OpenAI ChatGPT / Codex 桌面版（Windows）用的小工具：
 
 | 資料夾 | 用途 |
 |---|---|
 | `antigravity-zh-tw/` | 不修改 App 檔案，以**繁體中文介面**啟動 Antigravity |
-| `agy-cache-watch/` | 在 App 右上角顯示**快取命中率**與**模型額度**，也可在終端機或網頁看 |
+| `agy-cache-watch/` | 在 Antigravity 右上角顯示**快取命中率**與**模型額度**，也可在終端機或網頁看 |
+| `codex-cache-watch/` | 在 ChatGPT / Codex 右上角顯示**快取命中率**、**5h/每週模型額度**與**上下文結構細分**（訊息、工具、Skills、記憶、自訂代理） |
 
-兩個資料夾要放在**同一層**（例如都放在 `%USERPROFILE%\.gemini\` 底下），啟動器會自動找到旁邊的 `agy-cache-watch`。
+資料夾建議都放在同一層（例如 `%USERPROFILE%\.gemini\` 底下），`antigravity-zh-tw` 啟動器會自動找到旁邊的 `agy-cache-watch`。
 
 需求：Windows、Node.js 22 以上（內建 `fetch` 與 `WebSocket`）、Python 3（只用標準函式庫）。
 
@@ -39,7 +40,7 @@
 
 ---
 
-## 二、快取與額度觀察 `agy-cache-watch/`
+## 二、Antigravity 快取與額度觀察 `agy-cache-watch/`
 
 ### App 內面板（隨繁中啟動器一起注入）
 右上角一排：
@@ -74,3 +75,44 @@ python agy_cache.py --selftest   # 自我檢查
 - 舊版 App 的對話（`.pb` 檔）沒有用量欄位，不會出現在統計裡。
 - Antigravity 沒有記錄「訊息／工具／系統提示各佔多少」，所以只能顯示上下文總量，無法分類。
 - 視窗很窄時，右上角那排可能蓋到標題列的按鈕。
+
+---
+
+## 三、ChatGPT / Codex 快取、額度與上下文結構面板 `codex-cache-watch/`
+
+### App 內面板（透過 `launch-codex-hud.vbs` 啟動注入）
+右上角一排：
+
+```
+Codex / GPT ◯71 ◯70   快取 97.7%
+```
+
+- **額度圓環**：第一個是**五小時限額**剩餘％、第二個是**每週限額**剩餘％，滑鼠停上去看重置時間。
+- **點開「快取 xx%」有兩個分頁**：
+  1. **快取與各模型統計**：
+     - 目前對話（含子代理合計）、每次呼叫命中率長條圖（Sparkline）。
+     - 近期全部對話的快取讀取／未命中輸入／輸出比例。
+     - 各模型與旗下各子代理（如 Einstein、Kepler、Curie 等）的呼叫次數、0% 次數與快取命中率。
+     - 各對話展開明細（子代理自動縮排於母對話下方）。
+  2. **上下文結構 (Context Breakdown)**：
+     - 顯示 `已使用 XX% (XX.X萬 / 47.5萬)` 與彩色分段長條圖、自動壓縮門檻。
+     - 細分 8 大項 Token 佔比：**訊息**、**系統工具**、**MCP 工具**、**系統提示**、**Skills**、**MCP 伺服器指示**、**記憶檔案**、**自訂代理**。
+     - 顯示 **自上次更新以來**、**自動壓縮緩衝區**、**可用空間**，以及 **MCP 工具（延遲載入）**、**系統工具（延遲載入）**。
+     - 底部可點開展開清單：`▸ MCP 工具`、`▸ Skills`、`▸ 記憶檔案`、`▸ 自訂代理`。
+
+### 使用
+1. 桌面捷徑 `ChatGPT.lnk` 目標填：
+   ```
+   C:\Windows\System32\wscript.exe "<放置路徑>\codex-cache-watch\launch-codex-hud.vbs"
+   ```
+   （啟動器透過 `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe --remote-debugging-port=9340 --remote-debugging-address=127.0.0.1` 啟動官方 Codex 桌面版並自動注入 `hud.js`。）
+2. 終端機與網頁模式：
+   ```
+   python codex_cache.py              # 顯示額度、各模型與子代理命中率、最新對話上下文結構
+   python codex_cache.py --html       # 產生 report.html 並開啟
+   python codex_cache.py --selftest   # 自我檢查
+   ```
+
+### 資料來源（全部唯讀）
+- `~/.codex/sessions/**/rollout-*.jsonl`：`token_usage_record`（每次呼叫的 `input_tokens`、`cached_input_tokens`、`output_tokens`）、`event_msg.token_count.rate_limits`（五小時與每週額度）、`world_state` 與 `response_item`（系統提示、工具、Skills、記憶與自訂代理結構）。
+- `~/.codex/state_5.sqlite` 與 `thread_history_1.sqlite`：對話標題、模型名稱、母子代理關係（`thread_spawn_edges`）與歷史對話步數。
