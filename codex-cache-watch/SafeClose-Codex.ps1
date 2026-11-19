@@ -43,7 +43,7 @@ function Is-CodexDaemonHelper($p, $parent) {
     $pc = if ($parent) { "$($parent.Name) $($parent.ExecutablePath) $($parent.CommandLine)" } else { '' }
     $isCodexPath = ($c -match '[\\/]\.codex[\\/]|OpenAI[\\/]Codex|WindowsApps[\\/]OpenAI\.Codex') -or
                    ($e -match '[\\/]\.codex[\\/]|OpenAI[\\/]Codex|WindowsApps[\\/]OpenAI\.Codex') -or
-                   ($pc -match 'codex\.exe|[\\/]\.codex[\\/]|OpenAI[\\/]Codex')
+                   ($pc -match 'codex\.exe|[\\/]\.codex[\\/]|OpenAI[\\/]Codex|[\\/]mcp[\\/](launch|server)\.(cmd|mjs|js)')
     if (-not $isCodexPath) { return $false }
     if ($n -match '^(conhost|crashpad_handler|codex-code-mode-host|codex-computer-use-swift|node_repl|WallpaperHost)(\.exe)?$') { return $true }
     if ($c -match 'cua-repl\.mjs|require-browser-access\.mjs|[\\/]mcp[\\/](launch|server)\.(cmd|mjs|js)|--listen\s+grpc') { return $true }
