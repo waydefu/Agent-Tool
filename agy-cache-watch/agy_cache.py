@@ -1,12 +1,15 @@
-"""Antigravity 快取命中觀察工具（唯讀，只用 Python 標準函式庫）。
+"""Antigravity 快取命中與上下文結構觀察工具（唯讀，只用 Python 標準函式庫）。
 
 讀取 ~/.gemini/antigravity*/conversations/*.db 的 gen_metadata，每列是一次模型呼叫。
-欄位對照（官方未公開，參考 zerodoxxx/ai-usage-dashboard PR #13 的逆向結果，已在本機資料核對）：
+欄位對照（官方未公開，參考 zerodoxxx/ai-usage-dashboard PR #13 的逆向結果，並加上 Field 9.10 上下文結構逆向）：
   1.4.2 未命中輸入 token、1.4.5 快取讀取 token、1.4.3 輸出 token、1.19 模型名稱
-命中率 = 快取讀取 / (未命中輸入 + 快取讀取)。只回傳數字與模型名稱，不讀對話內容。
+  1.9.10.1 總上下文 token、1.9.10.4 上下文上限（如 512000）、1.9.10.3.1 各分類精確 token 與子項目明細：
+    Chat Messages（訊息）、Tools（系統工具）、Mcp Tools（MCP 工具）、System Prompt（系統提示）、
+    Skills（技能）、Plugins（推薦外掛）、Rules（使用者規則）、Subagents（子代理）
+命中率 = 快取讀取 / (未命中輸入 + 快取讀取)。只回傳數字與結構名稱，不讀對話文字內容。
 
 用法：
-  python -I agy_cache.py              各模型與最近 10 個對話的命中率
+  python -I agy_cache.py              各模型與最近 10 個對話的命中率與最新上下文明細
   python -I agy_cache.py --days 1     只算最近 1 天有更新的對話
   python -I agy_cache.py --watch 30   每 30 秒列出最新對話的新呼叫（Ctrl+C 結束）
   python -I agy_cache.py --selftest
@@ -17,6 +20,17 @@ from collections import defaultdict
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HOME = os.path.expanduser("~")
 DIRS = [os.path.join(HOME, ".gemini", d, "conversations") for d in ("antigravity", "antigravity-cli")]
+
+CAT_META = {
+    "Chat Messages": ("訊息", "#2f81f7", 1),
+    "Tools": ("系統工具", "#f0883e", 2),
+    "Mcp Tools": ("MCP 工具", "#2ea39b", 3),
+    "System Prompt": ("系統提示", "#8b8b94", 4),
+    "Skills": ("Skills", "#7d7d86", 5),
+    "Plugins": ("外掛目錄 (Plugins)", "#6e6e77", 6),
+    "Rules": ("使用者規則 (Rules)", "#5f5f68", 7),
+    "Subagents": ("子代理定義 (Subagents)", "#505059", 8),
+}
 
 
 def fields(buf):
@@ -77,13 +91,92 @@ def decode_call(blob):
         return None
 
 
-def read_db(path):
+def decode_breakdown(blob, prev_total=0):
+    """從 gen_metadata 最後一筆 blob 的 1.9.10 解碼官方精確的上下文結構明細。"""
+    try:
+        m = last(blob, 1, 2)
+        if not m:
+            return None
+        f9 = last(m, 9, 2)
+        if not f9:
+            return None
+        f10 = last(f9, 10, 2)
+        if not f10:
+            return None
+        used = last(f10, 1, 0) or 0
+        limit = last(f10, 4, 0) or 512000
+        f3 = last(f10, 3, 2)
+        if not f3:
+            return None
+        cats = []
+        lists = {}
+        chat_last_step = 0
+        for ssf, ssw, ssv in fields(f3):
+            if ssf == 1 and ssw == 2:
+                raw_name = last(ssv, 1, 2)
+                raw_name = raw_name.decode("utf-8", "replace") if raw_name else "Other"
+                tok = last(ssv, 4, 0) or 0
+                zh_name, color, order = CAT_META.get(raw_name, (raw_name, "#666670", 99))
+                subs = []
+                for k, kw, kv in fields(ssv):
+                    if k == 5 and kw == 2:
+                        sn = last(kv, 1, 2)
+                        sn = sn.decode("utf-8", "replace") if sn else ""
+                        st = last(kv, 3, 0) or 0
+                        if sn:
+                            subs.append((sn, st))
+                cats.append({"order": order, "name": zh_name, "raw": raw_name, "tokens": tok, "color": color})
+                if raw_name == "Chat Messages" and subs:
+                    # 計算最後一輪 USER_INPUT 至今新增的訊息 token
+                    acc = 0
+                    for sn, st in reversed(subs):
+                        acc += st
+                        if "USER_INPUT" in sn:
+                            break
+                    chat_last_step = acc
+                elif raw_name != "Chat Messages" and subs:
+                    lists[zh_name] = [f"{sn} ({st:,} tok)" for sn, st in sorted(subs, key=lambda x: -x[1])]
+        cats.sort(key=lambda x: x["order"])
+        for c in cats:
+            c.pop("order", None)
+        if not used:
+            used = sum(c["tokens"] for c in cats)
+        since_last = max(0, used - prev_total) if prev_total else 0
+        if since_last == 0 and chat_last_step:
+            since_last = chat_last_step
+        avail = max(0, limit - used)
+        return {
+            "used": used,
+            "limit": limit,
+            "used_pct": round(100.0 * used / limit, 1) if limit else 0.0,
+            "cats": cats,
+            "since_last": since_last,
+            "available": avail,
+            "lists": lists,
+        }
+    except ValueError:
+        return None
+
+
+def read_db(path, with_breakdown=False):
     con = sqlite3.connect("file:%s?mode=ro" % path.replace("\\", "/"), uri=True, timeout=0.5)
     try:
         rows = con.execute("select idx, data from gen_metadata order by idx").fetchall()
     finally:
         con.close()
-    return [(idx, c) for idx, d in rows if d and (c := decode_call(d))]
+    calls = []
+    valid_blobs = []
+    for idx, d in rows:
+        if d and (c := decode_call(d)):
+            calls.append((idx, c))
+            valid_blobs.append((d, c[1] + c[2]))
+    if not with_breakdown:
+        return calls
+    bd = None
+    if valid_blobs:
+        prev_tot = valid_blobs[-2][1] if len(valid_blobs) >= 2 else 0
+        bd = decode_breakdown(valid_blobs[-1][0], prev_tot)
+    return calls, bd
 
 
 def rate(un, cr):
@@ -104,28 +197,24 @@ def conversations(days=None):
 
 
 def summary(days):
-    per_model = defaultdict(lambda: [0, 0, 0, 0, 0])  # calls, uncached, cache, output, zero-hit calls
-    convs = []
-    for f in conversations(days):
-        try:
-            calls = read_db(f)
-        except sqlite3.Error as e:
-            print("略過 %s：%s" % (os.path.basename(f), e)); continue
-        if not calls:
-            continue
-        un = sum(c[1] for _, c in calls); cr = sum(c[2] for _, c in calls)
-        convs.append((os.path.basename(f)[:8], len(calls), rate(un, cr), time.strftime("%m-%d %H:%M", time.localtime(os.path.getmtime(f)))))
-        for _, (model, u, c, o) in calls:
-            s = per_model[model]; s[0] += 1; s[1] += u; s[2] += c; s[3] += o; s[4] += (c == 0)
+    per_model, convs = collect(days)
     if not per_model:
         print("找不到有用量紀錄的對話（新版 App 的對話用過才會產生）。"); return
     print("== 各模型快取命中率（命中率 = 快取讀取 ÷ 全部輸入）")
     print("%-28s %6s %8s %12s %12s %8s" % ("模型", "呼叫", "命中率", "未命中輸入", "快取讀取", "0%次數"))
     for model, (n, u, c, o, z) in sorted(per_model.items(), key=lambda x: -x[1][0]):
         print("%-28s %6d %6.1f%% %12d %12d %8d  %s" % (model[:28], n, rate(u, c), u, c, z, bar(rate(u, c))))
+    if convs and convs[0][3]:
+        b = convs[0][3]
+        print("\n== 最新對話上下文結構 (%s)：已使用 %.1f%%（%s / %s）" % (convs[0][0][:8], b["used_pct"], wan(b["used"]), wan(b["limit"])))
+        for c in b["cats"]:
+            print("  %-22s %10s  %5.1f%%" % (c["name"], wan(c["tokens"]), 100.0 * c["tokens"] / (b["limit"] or 1)))
+        print("  %-22s %10s  %5.1f%%" % ("自上次呼叫新增", wan(b["since_last"]), 100.0 * b["since_last"] / (b["limit"] or 1)))
+        print("  %-22s %10s  %5.1f%%" % ("可用空間", wan(b["available"]), 100.0 * b["available"] / (b["limit"] or 1)))
     print("\n== 最近對話")
-    for cid, n, r, t in convs[:10]:
-        print("%s  %s  %4d 次呼叫  %5.1f%%  %s" % (t, cid, n, r, bar(r)))
+    for cid, t, calls, _ in convs[:10]:
+        un = sum(c[1] for _, c in calls); cr = sum(c[2] for _, c in calls); r = rate(un, cr)
+        print("%s  %s  %4d 次呼叫  %5.1f%%  %s" % (t, cid[:8], len(calls), r, bar(r)))
 
 
 def watch(interval):
@@ -170,12 +259,12 @@ def collect(days):
     convs = []
     for f in conversations(days):
         try:
-            calls = read_db(f)
+            calls, bd = read_db(f, with_breakdown=True)
         except sqlite3.Error:
             continue
         if not calls:
             continue
-        convs.append((os.path.basename(f)[:-3], time.strftime("%m-%d %H:%M", time.localtime(os.path.getmtime(f))), calls))
+        convs.append((os.path.basename(f)[:-3], time.strftime("%m-%d %H:%M", time.localtime(os.path.getmtime(f))), calls, bd))
         for _, (model, u, c, o) in calls:
             s = per_model[model]; s[0] += 1; s[1] += u; s[2] += c; s[3] += o; s[4] += (c == 0)
     return per_model, convs
@@ -202,7 +291,7 @@ def html_report(days, refresh):
         return "".join('<span title="#%d %s 命中 %.0f%%" style="height:%.0f%%;background:%s"></span>' % (
             idx, H.escape(m), rate(u, c), max(rate(u, c), 3), "#f85149" if c == 0 else "#2f81f7") for idx, (m, u, c, o) in calls[-120:])
     conv_html = "".join('<div class="conv"><div class="row"><span>%s ・ %s</span><b>%d 次</b><em>%.1f%%</em></div><div class="spark">%s</div></div>' % (
-        t, cid[:8], len(calls), rate(sum(x[1][1] for x in calls), sum(x[1][2] for x in calls)), spark(calls)) for cid, t, calls in convs[:8])
+        t, cid[:8], len(calls), rate(sum(x[1][1] for x in calls), sum(x[1][2] for x in calls)), spark(calls)) for cid, t, calls, _ in convs[:8])
     hit = rate(un, cr)
     page = """<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>Antigravity 快取命中</title>%s
 <style>
@@ -241,8 +330,12 @@ def selftest():
     def fv(f, n): return v(f << 3) + v(n)
     def fb(f, b): return v(f << 3 | 2) + v(len(b)) + b
     usage = fv(2, 3237) + fv(3, 391) + fv(5, 16228) + fv(9, 315)
-    blob = fb(1, fb(4, usage) + fb(19, b"gemini-4-neon")) + fv(2, 7)
+    cat1 = fb(1, b"Tools") + fv(2, 2) + fv(3, 1) + fv(4, 510) + fb(5, fb(1, b"run_command") + fv(3, 510))
+    f10 = fv(1, 19465) + fb(3, fb(1, cat1) + fv(2, 19465)) + fv(4, 512000)
+    blob = fb(1, fb(4, usage) + fb(9, fb(10, f10)) + fb(19, b"gemini-4-neon")) + fv(2, 7)
     assert decode_call(blob) == ("gemini-4-neon", 3237, 16228, 391), decode_call(blob)
+    bd = decode_breakdown(blob, 15000)
+    assert bd and bd["used"] == 19465 and bd["limit"] == 512000 and bd["cats"][0]["tokens"] == 510, bd
     assert abs(rate(3237, 16228) - 83.37) < 0.01
     assert decode_call(b"\x0b") is None  # bad wire type degrades to no data
     print("selftest ok")
@@ -265,7 +358,7 @@ if __name__ == "__main__":
         names = titles()
         # 子代理（有上層對話者）依「模型＋子代理名稱」分開統計：次數、未命中、快取讀取、0% 次數。
         subs = defaultdict(lambda: [0, 0, 0, 0])
-        for cid, _, calls in convs:
+        for cid, _, calls, _ in convs:
             meta = names.get(cid) or ("", "", "")
             if meta[1]:
                 for _, (m, u, c, o) in calls:
@@ -283,7 +376,8 @@ if __name__ == "__main__":
                         "hit": round(rate(sum(c[1][1] for c in calls), sum(c[1][2] for c in calls)), 1),
                         "uncached": sum(c[1][1] for c in calls), "cache": sum(c[1][2] for c in calls),
                         "zero": sum(1 for c in calls if c[1][2] == 0),
-                        "calls": [[round(rate(u, c), 1), m, u, c, o] for _, (m, u, c, o) in calls[-150:]]} for cid, t, calls in convs[:40]],
+                        "calls": [[round(rate(u, c), 1), m, u, c, o] for _, (m, u, c, o) in calls[-150:]],
+                        "breakdown": bd} for cid, t, calls, bd in convs[:40]],
             "updated": time.strftime("%H:%M:%S")}, ensure_ascii=False))
     elif a.html:
         path = html_report(a.days, a.every)
