@@ -11,6 +11,7 @@ Object.assign(loc.text, extra.actions, extra.text);
 loc.valueMaps = loc.valueMaps || {};
 loc.valueMaps.twAction = { ...extra.actions };
 loc.valueMaps.twLevel = { ...(extra.levels || {}) };
+loc.valueMaps.twPermTarget = { ...(extra.permTargets || {}) };
 loc.valueMaps.preset = { ...(loc.valueMaps.preset || {}), ...extra.presetExtra };
 const ids = new Set(extra.patterns.map((p) => p.id));
 loc.patterns = [...extra.patterns, ...(loc.patterns || []).filter((p) => !ids.has(p.id))];

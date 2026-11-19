@@ -173,9 +173,10 @@ def read_db(path, with_breakdown=False):
     if not with_breakdown:
         return calls
     bd = None
-    if valid_blobs:
-        prev_tot = valid_blobs[-2][1] if len(valid_blobs) >= 2 else 0
-        bd = decode_breakdown(valid_blobs[-1][0], prev_tot)
+    prev_tot = valid_blobs[-2][1] if len(valid_blobs) >= 2 else (valid_blobs[-1][1] if valid_blobs else 0)
+    for idx, d in reversed(rows):
+        if d and (bd := decode_breakdown(d, prev_tot)):
+            break
     return calls, bd
 
 

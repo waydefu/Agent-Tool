@@ -1,7 +1,6 @@
 // 注入 ChatGPT / Codex Desktop 視窗的快取命中、模型額度與上下文結構面板。
 // 資料由 launch-codex-hud.js 呼叫 window.__codexCacheHud(data) 推入。
 (() => {
-  if (window.__codexCacheHud) return;
   const GEN = String(Date.now());
   window.__codexHudGen = GEN;
 
@@ -33,6 +32,9 @@
 #codex-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#1b1b21;border-radius:3px;padding:2px;margin:4px 0 6px;overflow:hidden}
 #codex-cache-hud .spark span{flex:1 1 0;min-width:0;border-radius:1px}
 #codex-cache-hud .muted{color:#8b8b94}
+#codex-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 6px;display:inline-block}
+#codex-cache-hud .link:hover{text-decoration:underline}
+#codex-cache-hud .picker{width:100%;margin-bottom:8px;padding:4px 6px;background:#16161b;color:#e6e6e6;border:1px solid #3a3a42;border-radius:6px;font:12px/1.4 system-ui,"Microsoft JhengHei",sans-serif}
 #codex-cache-hud .ctx-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:4px}
 #codex-cache-hud .ctx-head small{font-weight:400;color:#9a9aa3;font-size:12px}
 #codex-cache-hud .thresh{display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px;font-size:12px}
@@ -58,10 +60,15 @@
       const tid = el.getAttribute('data-thread-id') || (el.getAttribute('href') || '').match(/([0-9a-f-]{36})/i)?.[1];
       if (tid) return tid.toLowerCase();
     }
+    const winTitle = (document.title || '').split(' - ')[0].trim();
+    if (winTitle && data?.recent) {
+      const hit = data.recent.find((c) => c.title && (c.title === winTitle || winTitle.startsWith(c.title)));
+      if (hit) return hit.id;
+    }
     return '';
   }
 
-  let root, data = null, shown = '', activeTab = 'cache', expanded = new Set(), openFolds = new Set();
+  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set();
 
   function mount() {
     if (root && document.body && document.body.contains(root)) return root;
@@ -78,6 +85,13 @@
     root.innerHTML = '<span class="quota"></span><div class="pill">快取 <b>…</b></div><div class="box">讀取中…</div>';
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
+      const ctxEl = e.target.closest('[data-ctx-id]');
+      if (ctxEl) {
+        inspectId = ctxEl.getAttribute('data-ctx-id');
+        activeTab = 'context';
+        render();
+        return;
+      }
       const tabEl = e.target.closest('[data-tab]');
       if (tabEl) {
         activeTab = tabEl.getAttribute('data-tab');
@@ -95,6 +109,12 @@
       if (convEl) {
         const cid = convEl.getAttribute('data-conv');
         expanded.has(cid) ? expanded.delete(cid) : expanded.add(cid);
+        render();
+      }
+    };
+    root.querySelector('.box').onchange = (e) => {
+      if (e.target.matches('[data-ctx-picker]')) {
+        inspectId = e.target.value;
         render();
       }
     };
@@ -129,8 +149,9 @@
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? '子代理 ' + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>';
+  const detail = (c, showCtxLink = false) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
+    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
+    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ 查看此對話的上下文結構明細（已使用 ${c.breakdown.used_pct}%・${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)}）</div>` : '');
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
@@ -183,9 +204,13 @@
       return;
     }
     const sel = selectedId();
-    shown = sel;
-    const cur = d.recent.find((c) => c.id === sel) || d.recent[0];
+    if (sel !== shown) {
+      shown = sel;
+      inspectId = sel;
+    }
     const isDetected = d.recent.some((c) => c.id === sel);
+    const cur = d.recent.find((c) => c.id === sel) || d.recent[0];
+    const targetCtx = d.recent.find((c) => c.id === inspectId) || cur;
     const kids = (id) => d.recent.filter((c) => c.parent === id);
     const ks = cur ? kids(cur.id) : [];
     const all = cur ? [cur, ...ks] : [];
@@ -197,27 +222,32 @@
       ? `${isDetected ? '目前對話' : '最新對話'}（${cur.title}）快取命中率 ${pillHit}%｜上下文已用 ${cur.breakdown?.used_pct ?? 0}%`
       : '全部對話快取命中率';
 
+    const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
+
     let h = `<div class="tabs">` +
       `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">快取與各模型統計</div>` +
-      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${cur?.breakdown?.used_pct ?? 0}%)</div>` +
+      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
       `</div>`;
 
     if (activeTab === 'context') {
-      h += `<div class="muted" style="margin-bottom:6px">對話：<b style="color:#e6e6e6">${name(cur)}</b></div>`;
-      h += renderContextBreakdown(cur);
+      h += `<select class="picker" data-ctx-picker>` + order.map((c) => {
+        const prefix = c.parent ? '　└ ' : (c.id === cur?.id ? '▶ ' : '');
+        const pctStr = c.breakdown ? ` (${c.breakdown.used_pct}%・${wan(c.breakdown.used)})` : '';
+        return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
+      }).join('') + `</select>`;
+      h += renderContextBreakdown(targetCtx);
       h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
       box.innerHTML = h;
       return;
     }
 
     h += `<h4 style="margin-top:2px">${isDetected ? '目前對話' : '最新對話'}</h4>`;
-    const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c)}`;
+    const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
     h += cur
       ? `<div class="cur">` +
         (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>合計（主對話＋${ks.length} 個子代理）</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
         head(cur) +
         ks.map(head).join('') +
-        (cur.breakdown ? `<div class="muted" style="margin-top:4px;cursor:pointer;color:#79b8ff" data-tab="context">▸ 查看此對話的上下文結構明細（已使用 ${cur.breakdown.used_pct}%・${wan(cur.breakdown.used)} / ${wan(cur.breakdown.limit)}）</div>` : '') +
         `</div>`
       : `<div class="cur muted">沒有偵測到對話。</div>`;
 
@@ -232,10 +262,9 @@
       (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">其中子代理 ${esc(x.agent)}</span><span class="muted">${x.calls} 次・0% ${x.zero} 次</span><em>${x.hit}%</em></div>`).join('')
     ).join('');
 
-    const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
     h += '<h4>各對話（點一下展開，縮排＝子代理）</h4>' + order.map((c) =>
       `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
-      (expanded.has(c.id) ? detail(c) : '')
+      (expanded.has(c.id) ? detail(c, true) : '')
     ).join('');
 
     h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;

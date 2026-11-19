@@ -12,9 +12,9 @@ const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Anti
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
 
-// 包成 IIFE 並加旗標，避免重複注入時 const 重複宣告或裝兩個翻譯引擎。
+// 包成 IIFE，支援重複注入熱更新字典與規則（透過 engine 內的 window.__agObserver?.disconnect() 避免疊兩個 MutationObserver）。
 const engine = buildPreloadFragment(loadLocale('zh-TW'));
-const payloadZh = `(() => { if (window.__agZhTw) return; window.__agZhTw = true;\n${engine}\n})();`;
+const payloadZh = `(() => {\n${engine}\n})();`;
 
 // 快取命中小面板（agy-cache-watch）。檔案不存在就只做繁中。
 // 與本資料夾同層的 agy-cache-watch（本機在 ~/.gemini 下，repo 裡也是同層）。

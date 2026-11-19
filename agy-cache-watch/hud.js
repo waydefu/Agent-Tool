@@ -1,5 +1,5 @@
 // 注入 Antigravity 視窗的快取命中、模型額度與上下文結構面板。資料由 launch-zh-tw.js 呼叫 window.__agyCacheHud(data) 推入。
-// 標籤顯示「目前開著的對話」的命中率（或最新對話），點開可切換「快取與各模型統計」與「上下文結構」。
+// 標籤顯示「目前開著的對話」的命中率（或最新對話），點開可切換「快取與各模型統計」與「上下文結構」，並支援切換查看任一歷史對話的上下文明細。
 (() => {
   const GEN = String(Date.now()); window.__agyHudGen = GEN;
   const css = `
@@ -8,7 +8,7 @@
 #agy-cache-hud .quota b{font-weight:600}#agy-cache-hud .quota svg{display:block}#agy-cache-hud .quota .sep{margin:0 4px;color:#55555c}
 #agy-cache-hud .pill{cursor:pointer;padding:2px 9px;border-radius:11px;background:#2a2a30;border:1px solid #3a3a42;white-space:nowrap}
 #agy-cache-hud .pill:hover{background:#34343c}#agy-cache-hud .pill b{font-weight:600}
-#agy-cache-hud .box{display:none;position:absolute;right:0;top:26px;width:375px;max-height:78vh;overflow:auto;padding:12px 14px;background:#232328;border:1px solid #3a3a42;border-radius:10px;box-shadow:0 8px 24px #000a}
+#agy-cache-hud .box{display:none;position:absolute;right:0;top:26px;width:378px;max-height:80vh;overflow:auto;padding:12px 14px;background:#232328;border:1px solid #3a3a42;border-radius:10px;box-shadow:0 8px 24px #000a}
 #agy-cache-hud.open .box{display:block}
 #agy-cache-hud .tabs{display:flex;gap:6px;margin-bottom:10px;background:#19191d;padding:3px;border-radius:8px;border:1px solid #32323a}
 #agy-cache-hud .tab{flex:1;text-align:center;padding:4px 0;border-radius:6px;cursor:pointer;color:#9a9aa3;font-size:12px;font-weight:500}
@@ -25,6 +25,9 @@
 #agy-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#2b2b31;border-radius:3px;padding:2px;margin:4px 0 6px;overflow:hidden}
 #agy-cache-hud .spark span{flex:1 1 0;min-width:0;border-radius:1px}
 #agy-cache-hud .muted{color:#8b8b94}
+#agy-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 6px;display:inline-block}
+#agy-cache-hud .link:hover{text-decoration:underline}
+#agy-cache-hud .picker{width:100%;margin-bottom:8px;padding:4px 6px;background:#19191d;color:#e6e6e6;border:1px solid #3a3a42;border-radius:6px;font:12px/1.4 system-ui,"Microsoft JhengHei",sans-serif}
 #agy-cache-hud .ctx-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:4px}
 #agy-cache-hud .ctx-head small{font-weight:400;color:#9a9aa3;font-size:12px}
 #agy-cache-hud .fold{border-top:1px solid #32323a;margin-top:6px;padding-top:4px}
@@ -49,7 +52,7 @@
     }
     return '';
   };
-  let root, data = null, shown = '', activeTab = 'cache', expanded = new Set(), openFolds = new Set();
+  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set();
 
   function mount() {
     if (root && document.body.contains(root)) return root;
@@ -61,6 +64,8 @@
     root.innerHTML = '<span class="quota"></span><div class="pill">快取 <b>…</b></div><div class="box">讀取中…</div>';
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
+      const ctxEl = e.target.closest('[data-ctx-id]');
+      if (ctxEl) { inspectId = ctxEl.getAttribute('data-ctx-id'); activeTab = 'context'; render(); return; }
       const tabEl = e.target.closest('[data-tab]');
       if (tabEl) { activeTab = tabEl.getAttribute('data-tab'); render(); return; }
       const foldEl = e.target.closest('[data-fold]');
@@ -68,14 +73,18 @@
       const el = e.target.closest('[data-conv]'); if (!el) return;
       const id = el.getAttribute('data-conv'); expanded.has(id) ? expanded.delete(id) : expanded.add(id); render();
     };
+    root.querySelector('.box').onchange = (e) => {
+      if (e.target.matches('[data-ctx-picker]')) { inspectId = e.target.value; render(); }
+    };
     document.body.appendChild(root);
     return root;
   }
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? '子代理 ' + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>';
+  const detail = (c, showCtxLink = false) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
+    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
+    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ 查看此對話的上下文結構明細（已使用 ${c.breakdown.used_pct}%・${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)}）</div>` : '');
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
@@ -111,9 +120,11 @@
   function render() {
     const r = mount(); if (!r) return; const d = data, pill = r.querySelector('.pill b'), box = r.querySelector('.box');
     if (!d || !d.models || !d.models.length) { pill.textContent = '無資料'; box.innerHTML = '<span class="muted">最近 7 天沒有用量紀錄。</span>'; return; }
-    const sel = selectedId(); shown = sel;
+    const sel = selectedId();
+    if (sel !== shown) { shown = sel; inspectId = sel; }
     const detected = d.recent.find((c) => c.id === sel);
     const cur = detected || d.recent[0];
+    const targetCtx = d.recent.find((c) => c.id === inspectId) || cur;
     const kids = (id) => d.recent.filter((c) => c.parent === id);
     const ks = cur ? kids(cur.id) : [];
     const all = cur ? [cur, ...ks] : [];
@@ -124,25 +135,30 @@
       ? `${detected ? '目前對話' : '最新對話'}${ks.length ? `＋${ks.length} 個子代理` : ''}快取命中率 ${pillHit}%｜上下文已用 ${cur.breakdown?.used_pct ?? 0}%`
       : '最近 7 天全部對話的快取命中率';
 
+    const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
+
     let h = `<div class="tabs">` +
       `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">快取與各模型統計</div>` +
-      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${cur?.breakdown?.used_pct ?? 0}%)</div>` +
+      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
       `</div>`;
 
     if (activeTab === 'context') {
-      h += `<div class="muted" style="margin-bottom:6px">${detected ? '目前對話' : '最新對話'}：<b style="color:#e6e6e6">${name(cur)}</b></div>`;
-      h += renderContextBreakdown(cur);
+      h += `<select class="picker" data-ctx-picker>` + order.map((c) => {
+        const prefix = c.parent ? '　└ ' : (c.id === cur?.id ? '▶ ' : '');
+        const pctStr = c.breakdown ? ` (${c.breakdown.used_pct}%・${wan(c.breakdown.used)})` : '';
+        return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
+      }).join('') + `</select>`;
+      h += renderContextBreakdown(targetCtx);
       h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
       box.innerHTML = h;
       return;
     }
 
     h += `<h4 style="margin-top:0">${detected ? '目前對話' : '最新對話（自動跟隨最後活躍對話）'}</h4>`;
-    const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c)}`;
+    const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
     h += cur ? `<div class="cur">` + (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>合計（主對話＋${ks.length} 個子代理）</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
       head(cur) + ks.map(head).join('') +
       (cur.parent ? `<div class="muted">這是子代理，上層對話：${name(d.recent.find((c) => c.id === cur.parent) || { id: cur.parent, title: '' })}</div>` : '') +
-      (cur.breakdown ? `<div class="muted" style="margin-top:4px;cursor:pointer;color:#79b8ff" data-tab="context">▸ 查看此對話的上下文結構明細（已使用 ${cur.breakdown.used_pct}%・${wan(cur.breakdown.used)} / ${wan(cur.breakdown.limit)}）</div>` : '') +
       '</div>'
       : `<div class="cur muted">沒有偵測到對話紀錄。</div>`;
 
@@ -153,9 +169,8 @@
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
     h += '<h4>各模型</h4>' + d.models.map((m) => `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} 次・0% ${m.zero} 次</span><em>${m.hit}%</em></div>` +
       (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">其中子代理 ${esc(x.agent)}</span><span class="muted">${x.calls} 次・0% ${x.zero} 次</span><em>${x.hit}%</em></div>`).join('')).join('');
-    const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
     h += '<h4>各對話（點一下展開，縮排＝子代理）</h4>' + order.map((c) => `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
-      (expanded.has(c.id) ? detail(c) : '')).join('');
+      (expanded.has(c.id) ? detail(c, true) : '')).join('');
     h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
     box.innerHTML = h;
   }

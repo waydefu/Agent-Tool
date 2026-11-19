@@ -280,7 +280,106 @@ function translateNode(root) {
         node = walker.nextNode();
     }
 }
+function translateMenuItems(items) {
+    if (!Array.isArray(items)) return items;
+    return items.map((item) => {
+        if (!item || typeof item !== 'object') return item;
+        const copy = { ...item };
+        if (typeof copy.label === 'string') {
+            copy.label = translateString(copy.label);
+        }
+        if (Array.isArray(copy.submenu)) {
+            copy.submenu = translateMenuItems(copy.submenu);
+        }
+        return copy;
+    });
+}
+function installNativeHooks() {
+    // 攔截瀏覽器 Notification API
+    if (typeof window.Notification === 'function' && !window.Notification.__agZhHooked) {
+        const OrigNotification = window.Notification;
+        const PatchedNotification = function(title, options) {
+            const t = typeof title === 'string' ? translateString(title) : title;
+            const opts = options && typeof options === 'object'
+                ? { ...options, body: typeof options.body === 'string' ? translateString(options.body) : options.body }
+                : options;
+            return new OrigNotification(t, opts);
+        };
+        PatchedNotification.prototype = OrigNotification.prototype;
+        Object.defineProperties(PatchedNotification, Object.getOwnPropertyDescriptors(OrigNotification));
+        PatchedNotification.__agZhHooked = true;
+        try { window.Notification = PatchedNotification; } catch {}
+    }
+    // 攔截 Electron 系統通知 window.nativeNotifications.send
+    try {
+        const rawNN = window.nativeNotifications;
+        if (rawNN && typeof rawNN.send === 'function' && !rawNN.__agZhHooked) {
+            const wrappedNN = {
+                ...rawNN,
+                __agZhHooked: true,
+                send(opts) {
+                    if (opts && typeof opts === 'object') {
+                        opts = {
+                            ...opts,
+                            title: typeof opts.title === 'string' ? translateString(opts.title) : opts.title,
+                            body: typeof opts.body === 'string' ? translateString(opts.body) : opts.body,
+                        };
+                    }
+                    return rawNN.send(opts);
+                },
+            };
+            Object.defineProperty(window, 'nativeNotifications', { get: () => wrappedNN, configurable: true });
+        }
+    } catch {}
+    // 攔截已建立於 React Context 內的 notificationService（翻譯右下角 Windows 系統通知的 title 與 body）
+    try {
+        const root = document.getElementById('root') || document.body?.firstElementChild;
+        const fk = root && Object.keys(root).find((k) => k.startsWith('__reactContainer') || k.startsWith('__reactFiber'));
+        if (fk) {
+            const q = [root[fk]];
+            const seen = new Set();
+            while (q.length && seen.size < 4500) {
+                const f = q.shift();
+                if (!f || seen.has(f)) continue;
+                seen.add(f);
+                const val = f.memoizedProps?.value;
+                const ns = val && typeof val === 'object' ? (val.core?.notificationService || val.notificationService) : null;
+                if (ns && typeof ns.sendNotification === 'function') {
+                    if (ns.bridge && typeof ns.bridge.send === 'function' && !ns.bridge.__agZhHooked) {
+                        const rawBridge = ns.bridge;
+                        ns.bridge = {
+                            ...rawBridge,
+                            __agZhHooked: true,
+                            send(opts) {
+                                if (opts && typeof opts === 'object') {
+                                    opts = {
+                                        ...opts,
+                                        title: typeof opts.title === 'string' ? (window.__agTranslateString || translateString)(opts.title) : opts.title,
+                                        body: typeof opts.body === 'string' ? (window.__agTranslateString || translateString)(opts.body) : opts.body,
+                                    };
+                                }
+                                return rawBridge.send(opts);
+                            },
+                        };
+                    }
+                    break;
+                }
+                if (f.child) q.push(f.child);
+                if (f.sibling) q.push(f.sibling);
+            }
+        }
+    } catch {}
+}
 function installLocalePatch() {
+    window.__agTranslateString = translateString;
+    window.__agTranslateNode = translateNode;
+    window.__agRefreshTranslations = () => {
+        installNativeHooks();
+        translateNode(document.documentElement);
+    };
+    installNativeHooks();
+    setTimeout(installNativeHooks, 1500);
+    setTimeout(installNativeHooks, 4000);
     document.documentElement.setAttribute('lang', AG_LOCALE.htmlLang || AG_LOCALE.language);
     translateNode(document.documentElement);
     const observer = new MutationObserver((mutations) => {
@@ -296,6 +395,8 @@ function installLocalePatch() {
             }
         }
     });
+    window.__agObserver?.disconnect();
+    window.__agObserver = observer;
     observer.observe(document.documentElement, {
         childList: true,
         subtree: true,
