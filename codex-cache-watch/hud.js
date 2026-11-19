@@ -30,8 +30,8 @@
 #codex-cache-hud .conv:hover{background:#2c2c33}
 #codex-cache-hud .conv span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #codex-cache-hud .cur{background:#26262e;border:1px solid #34343e;border-radius:8px;padding:8px 10px}
-#codex-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#1b1b21;border-radius:3px;padding:2px;margin:4px 0 6px}
-#codex-cache-hud .spark span{flex:1;min-width:2px;border-radius:1px}
+#codex-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#1b1b21;border-radius:3px;padding:2px;margin:4px 0 6px;overflow:hidden}
+#codex-cache-hud .spark span{flex:1 1 0;min-width:0;border-radius:1px}
 #codex-cache-hud .muted{color:#8b8b94}
 #codex-cache-hud .ctx-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:4px}
 #codex-cache-hud .ctx-head small{font-weight:400;color:#9a9aa3;font-size:12px}
@@ -130,7 +130,7 @@
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? '子代理 ' + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
   const detail = (c) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>';
+    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>';
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
