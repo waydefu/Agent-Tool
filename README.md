@@ -12,6 +12,10 @@
 | [Antigravity 用量面板](./agy-cache-watch/) | 查看快取命中率、模型額度與上下文結構 |
 | [ChatGPT／Codex 用量面板](./codex-cache-watch/) | 查看快取命中率、五小時與每週額度，以及上下文結構 |
 
+## GitHub 雲端開發環境
+
+開發者可透過 **Code → Codespaces** 使用預先安裝 Python、Node.js、`rg`、`fd` 的 Linux 開發環境，詳見 [開發與 Agent 指南](docs/DEVELOPMENT.md) 及 [AGENTS.md](AGENTS.md)。這不會修改本機 Windows。
+
 ## 快速開始
 
 1. 用 GitHub 的 **Code → Download ZIP** 下載並解壓縮。三個工具資料夾請保持在同一層，方便繁中啟動器找到 Antigravity 面板。
