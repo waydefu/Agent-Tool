@@ -1,5 +1,7 @@
 # Agent-Tool
 
+**語言：** [繁體中文](README.md) · [English](README.en.md)
+
 [![CI](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml/badge.svg)](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml)
 
 給 Windows 上的 Google Antigravity、ChatGPT 與 Codex 桌面使用者的社群工具，提供繁體中文介面、模型額度與 Token 用量觀察。
@@ -21,6 +23,8 @@
 **驗證狀態：** 自動化測試和 Windows 桌面實機驗收是不同層級。請先參閱 [測試範圍](docs/TESTING.md) 與 [安全稽核](docs/SECURITY_AUDIT.md)；在完成實機驗收之前，不宣稱全面相容或正式穩定。
 
 ## 社群協作與安全
+
+英文使用者請參閱 [English README](README.en.md)、[English Security](SECURITY.en.md) 與 [English Contributing](CONTRIBUTING.en.md)。
 
 - [貢獻指南](CONTRIBUTING.md)：如何回報、測試並提交修正。
 - [安全政策](SECURITY.md)：CDP、本機資料與私下回報方式。
@@ -45,6 +49,8 @@
 - 啟動器會一直連著視窗，所以 App 重新載入後會自動再注入；App 關閉後啟動器自己結束。
 
 ### 使用
+英文介面與英文 HUD 可使用 `antigravity-zh-tw/launch-en.vbs`；此模式保留 Antigravity 原生英文，不注入繁中字典。亦可執行 `node launch-zh-tw.js --lang=en`。
+
 1. 建一個桌面捷徑，目標填：
    ```
    C:\Windows\System32\wscript.exe "<放置路徑>\antigravity-zh-tw\launch-zh-tw.vbs"
@@ -127,6 +133,8 @@ Codex / GPT ◯71 ◯70   快取 97.7%
      - 底部可點開展開清單：`▸ MCP 工具`、`▸ Skills`、`▸ 記憶檔案`、`▸ 自訂代理`。
 
 ### 使用
+英文 HUD 可使用 `codex-cache-watch/launch-codex-hud-en.vbs`，或執行 `node launch-codex-hud.js --lang=en`。原本的 `.vbs` 仍使用繁中。
+
 1. 桌面捷徑 `ChatGPT.lnk` 目標填：
    ```
    C:\Windows\System32\wscript.exe "<放置路徑>\codex-cache-watch\launch-codex-hud.vbs"
