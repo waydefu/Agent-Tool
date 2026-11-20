@@ -16,7 +16,6 @@
   python -I codex_cache.py --days 30    只算最近 N 天有更新的對話（預設 30 天）
   python -I codex_cache.py --json       輸出 JSON（給 App 內的 HUD 面板用）
   python -I codex_cache.py --html       產生視覺化 report.html 並開啟
-  python -I codex_cache.py --watch 30   每 30 秒列出最新對話的新呼叫
   python -I codex_cache.py --selftest   自我測試
 """
 import argparse, glob, json, os, re, sqlite3, sys, time

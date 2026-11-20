@@ -79,7 +79,9 @@ for ($depth = 0; $depth -lt 4; $depth++) {
 
 # 一併找出 launch-codex-hud.js 的 node 守護行程（限定命令列包含 launch-codex-hud.js）
 $hudScript = [regex]::Escape((Join-Path $PSScriptRoot 'launch-codex-hud.js'))
-$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -match $hudScript })
+# 由桌面啟動器呼叫 SafeClose 時，不能在重啟完成前終止呼叫它的父 Node 行程。
+$callerProcessId = if ($byId.ContainsKey([int]$PID)) { [int]$byId[[int]$PID].ParentProcessId } else { -1 }
+$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -match $hudScript -and [int]$_.ProcessId -ne $callerProcessId })
 
 # 檢查最近 $IdleSeconds 秒內是否有對話紀錄正在寫入
 $sess = "$env:USERPROFILE\.codex\sessions"
