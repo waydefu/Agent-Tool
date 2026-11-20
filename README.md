@@ -30,6 +30,7 @@
 - [安全政策](SECURITY.md)：CDP、本機資料與私下回報方式。
 - [變更紀錄](CHANGELOG.md)：尚未發布與已發布的變更。
 - [測試說明](docs/TESTING.md) 與 [發布檢查表](docs/RELEASE_CHECKLIST.md)：CI 與實機測試界線。
+- [程式審查報告](docs/REVIEW_2026-11-20.md)／[English review](docs/REVIEW_2026-11-20.en.md)：修正紀錄與殘餘風險。
 
 ## 問題回報
 
@@ -96,6 +97,7 @@ python agy_cache.py              # 最近 7 天各模型命中率
 python agy_cache.py --watch 10   # 每 10 秒更新
 python agy_cache.py --html       # 產生 report.html 並開啟
 python agy_cache.py --selftest   # 自我檢查
+python agy_cache.py --lang en    # 英文終端機輸出，--html 可產生英文報表
 ```
 
 ### 資料來源（全部唯讀）
@@ -145,6 +147,7 @@ Codex / GPT ◯71 ◯70   快取 97.7%
    python codex_cache.py              # 顯示額度、各模型與子代理命中率、最新對話上下文結構
    python codex_cache.py --html       # 產生 report.html 並開啟
    python codex_cache.py --selftest   # 自我檢查
+python codex_cache.py --lang en  # 英文終端機輸出，--html 可產生英文報表
    ```
 
 ### 資料來源（全部唯讀）

@@ -3,7 +3,7 @@
 正式標示 Stable 前，維護者須完成：
 
 - [ ] GitHub Actions `validate-linux` 與 `validate-windows` 全部通過
-- [ ] 在實際 Windows 10/11 與指定桌面版本完成功能／負面測試（參照 [TESTING](TESTING.md)）
+- [ ] 在實際 Windows 10/11 與指定桌面版本完成功能／負面測試（參照 [TESTING](TESTING.md)），包含繁中／英文 HUD 及兩種捷徑
 - [ ] 確認 CDP 綁定僅本機且注入目標正確，關閉流程不誤殺其他行程
 - [ ] 確認程式碼與 ZIP 無金鑰、Session、SQLite、個人路徑或原始用量輸出
 - [ ] 核對第三方授權、來源連結、繁中 README 與安裝步驟
