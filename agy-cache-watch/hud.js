@@ -125,7 +125,7 @@
 
   function render() {
     const r = mount(); if (!r) return; const d = data, pill = r.querySelector('.pill b'), box = r.querySelector('.box');
-    if (!d || !d.models || !d.models.length) { pill.textContent = '無資料'; box.innerHTML = '<span class="muted">最近 7 天沒有用量紀錄。</span>'; return; }
+    if (!d || !d.models || !d.models.length) { pill.textContent = t('無資料', 'No data'); box.innerHTML = `<span class="muted">${t('最近 7 天沒有用量紀錄。', 'No usage records for the last 7 days.')}</span>`; return; }
     const sel = selectedId();
     if (sel !== shown) { shown = sel; inspectId = sel; }
     const detected = d.recent.find((c) => c.id === sel);
@@ -138,14 +138,14 @@
     const pillHit = cur ? rate(sum('uncached'), sum('cache')) : d.hit;
     pill.textContent = pillHit + '%'; pill.style.color = color(pillHit);
     r.querySelector('.pill').title = cur
-      ? `${detected ? '目前對話' : '最新對話'}${ks.length ? `＋${ks.length} 個子代理` : ''}快取命中率 ${pillHit}%｜上下文已用 ${cur.breakdown?.used_pct ?? 0}%`
-      : '最近 7 天全部對話的快取命中率';
+      ? `${detected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')}${ks.length ? ` + ${ks.length} ${t('個子代理', 'subagents')}` : ''} ${t('快取命中率', 'cache hit rate')} ${pillHit}% · ${t('上下文已用', 'context used')} ${cur.breakdown?.used_pct ?? 0}%`
+      : t('最近 7 天全部對話的快取命中率', 'Cache hit rate for all conversations in the last 7 days');
 
     const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
 
     let h = `<div class="tabs">` +
-      `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">快取與各模型統計</div>` +
-      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
+      `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">${t('快取與各模型統計', 'Cache & models')}</div>` +
+      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">${t('上下文結構', 'Context breakdown')} (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
       `</div>`;
 
     if (activeTab === 'context') {
@@ -155,27 +155,27 @@
         return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
       }).join('') + `</select>`;
       h += renderContextBreakdown(targetCtx);
-      h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
+      h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
       box.innerHTML = h;
       return;
     }
 
-    h += `<h4 style="margin-top:0">${detected ? '目前對話' : '最新對話（自動跟隨最後活躍對話）'}</h4>`;
+    h += `<h4 style="margin-top:0">${detected ? t('目前對話', 'Current conversation') : t('最新對話（自動跟隨最後活躍對話）', 'Latest conversation (auto-follow)')}</h4>`;
     const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
-    h += cur ? `<div class="cur">` + (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>合計（主對話＋${ks.length} 個子代理）</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
+    h += cur ? `<div class="cur">` + (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
       head(cur) + ks.map(head).join('') +
-      (cur.parent ? `<div class="muted">這是子代理，上層對話：${name(d.recent.find((c) => c.id === cur.parent) || { id: cur.parent, title: '' })}</div>` : '') +
+      (cur.parent ? `<div class="muted">${t('這是子代理，上層對話：', 'Subagent · parent conversation: ')}${name(d.recent.find((c) => c.id === cur.parent) || { id: cur.parent, title: '' })}</div>` : '') +
       '</div>'
-      : `<div class="cur muted">沒有偵測到對話紀錄。</div>`;
+      : `<div class="cur muted">${t('沒有偵測到對話紀錄。', 'No conversation records detected.')}</div>`;
 
     const tot = d.cache + d.uncached + d.output || 1;
-    const segs = [['快取讀取', d.cache, '#2f81f7'], ['未命中輸入', d.uncached, '#f0883e'], ['輸出', d.output, '#2ea39b']];
-    h += `<h4>最近 7 天全部：命中 ${d.hit}%（${wan(tot)} token）</h4>`;
+    const segs = [[t('快取讀取', 'Cached input'), d.cache, '#2f81f7'], [t('未命中輸入', 'Uncached input'), d.uncached, '#f0883e'], [t('輸出', 'Output'), d.output, '#2ea39b']];
+    h += `<h4>${t('最近 7 天全部：命中', 'Last 7 days · cache hit')} ${d.hit}% (${wan(tot)} token)</h4>`;
     h += '<div class="bar">' + segs.map(([, v, c]) => `<span style="width:${(100 * v / tot).toFixed(2)}%;background:${c}"></span>`).join('') + '</div>';
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
-    h += '<h4>各模型</h4>' + d.models.map((m) => `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} 次・0% ${m.zero} 次</span><em>${m.hit}%</em></div>` +
-      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">其中子代理 ${esc(x.agent)}</span><span class="muted">${x.calls} 次・0% ${x.zero} 次</span><em>${x.hit}%</em></div>`).join('')).join('');
-    h += '<h4>各對話（點一下展開，縮排＝子代理）</h4>' + order.map((c) => `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
+    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) => `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} ${t('次', 'calls')} · 0% ${m.zero}</span><em>${m.hit}%</em></div>` +
+      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">${t('其中子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0% ${x.zero}</span><em>${x.hit}%</em></div>`).join('')).join('');
+    h += `<h4>${t('各對話（點一下展開，縮排＝子代理）', 'Conversations (select to expand; indented = subagents)')}</h4>` + order.map((c) => `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
       (expanded.has(c.id) ? detail(c, true) : '')).join('');
     h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
     box.innerHTML = h;
@@ -188,7 +188,7 @@
     `<circle cx="10.5" cy="10.5" r="8" fill="none" stroke="#3a3a42" stroke-width="2"/>` +
     `<circle cx="10.5" cy="10.5" r="8" fill="none" stroke="${qcolor(p)}" stroke-width="2" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 10.5 10.5)"/>` +
     `<text x="10.5" y="13.2" text-anchor="middle" font-size="${p >= 100 ? 6.5 : 8}" fill="#e6e6e6">${p}</text></svg>`; };
-  const when = (t) => { const d = new Date(t); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} 重置`; };
+  const when = (t) => { const d = new Date(t); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${t('重置', 'reset')}`; };
   async function quota() {
     const r = mount(); if (!r) return; const q = r.querySelector('.quota');
     try {
@@ -200,12 +200,12 @@
         const name = GROUP[g.displayName] || g.displayName.replace(/^Gemini 4 /, '');
         return `<span>${esc(name)}</span>` + (g.buckets || []).map((b) => {
           const p = Math.round((b.remainingFraction ?? 0) * 100);
-          return ring(p, `${name} ${b.window === '5h' ? '五小時' : '每週'}限額剩餘 ${p}%，${when(b.resetTime)}`);
+          return ring(p, `${name} ${b.window === '5h' ? t('五小時', '5-hour') : t('每週', 'weekly')} ${t('限額剩餘', 'quota remaining')} ${p}% · ${when(b.resetTime)}`);
         }).join('');
       }).join('<span class="sep">｜</span>');
       q.title = '';
     } catch (e) {
-      q.textContent = '額度讀取中…'; q.title = String(e && e.message || e);
+      q.textContent = t('額度讀取中…', 'Loading quota…'); q.title = String(e && e.message || e);
       if (window.__agyHudGen === GEN) setTimeout(quota, 3000);
     }
   }
