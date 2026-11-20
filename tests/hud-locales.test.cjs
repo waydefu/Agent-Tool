@@ -134,6 +134,8 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
       throw new Error('unexpected selector: ' + selector);
     },
   };
+  const future5h = Math.floor(Date.now() / 1000) + 3600;
+  const futureWk = Math.floor(Date.now() / 1000) + 500000;
   const liveBtn = {
     getAttribute: (k) => k === 'aria-description' ? '5 小時用量：剩餘 9%。每週用量：剩餘 86%' : null,
     __reactFiber$mock: {
@@ -143,8 +145,8 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
             usage: {
               plan_type: 'plus',
               rate_limit: {
-                primary_window: { used_percent: 91, reset_at: 1795170887 },
-                secondary_window: { used_percent: 14, reset_at: 1795757687 },
+                primary_window: { used_percent: 91, limit_window_seconds: 18000, reset_at: future5h },
+                secondary_window: { used_percent: 14, limit_window_seconds: 604800, reset_at: futureWk },
               },
             },
             data: {
