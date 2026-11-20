@@ -43,7 +43,7 @@ function runHud(file, lang) {
   vm.runInNewContext(fs.readFileSync(file, 'utf8'), context, { filename: file, timeout: 1000 });
   const data = {
     hit: 40, cache: 40, uncached: 60, output: 10, updated: '12:00:00', quota: [{
-      name: 'Codex', plan: 'plus', buckets: [{ label: '五小時', window: '5h', remaining: 80, used: 20, reset: 'tomorrow' }],
+      name: '週額度 / 五小額度', plan: 'plus', buckets: [{ label: '五小時', window: '5h', remaining: 80, used: 20, reset: 'tomorrow' }],
     }],
     models: [{ name: 'model-a', calls: 1, hit: 40, zero: 0, subs: [] }],
     recent: [{
@@ -73,12 +73,15 @@ function runHud(file, lang) {
   };
 }
 
-for (const [file, product] of [
+  for (const [file, product] of [
   ['agy-cache-watch/hud.js', 'Antigravity'],
   ['codex-cache-watch/hud.js', 'Codex'],
 ]) {
   test(product + ' HUD English interface', () => {
     const hud = runHud(file, 'en');
+    if (product === 'Codex') {
+      assert.match(hud.quota.innerHTML, /<span>Weekly \/ 5h<\/span>/);
+    }
     assert.match(hud.box.innerHTML, /Cache &amp; models|Cache & models/);
     assert.match(hud.box.innerHTML, /By model/);
     assert.match(hud.box.innerHTML, /Cached input/);

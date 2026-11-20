@@ -229,7 +229,7 @@
       return;
     }
     q.innerHTML = groups.map((g) => {
-      const label = (!g.name || g.name === 'Codex' || g.name === 'Codex / GPT')
+      const label = (!g.name || g.name === 'Codex' || g.name === 'Codex / GPT' || g.name === '週額度 / 五小額度' || g.name === 'Weekly / 5h')
         ? t('週額度 / 五小額度', 'Weekly / 5h')
         : g.name;
       const ordered = [...(g.buckets || [])].sort((a, b) => (a.window === 'week' ? -1 : 1) - (b.window === 'week' ? -1 : 1));
