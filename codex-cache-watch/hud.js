@@ -80,8 +80,7 @@
   function mount() {
     if (root && document.body && document.body.contains(root)) return root;
     if (!document.body || !document.head) return null;
-    document.getElementById('codex-cache-hud')?.remove();
-    document.getElementById('codex-cache-hud-style')?.remove();
+    document.querySelectorAll('#codex-cache-hud, #codex-cache-hud-style').forEach((el) => el.remove());
     const st = document.createElement('style');
     st.id = 'codex-cache-hud-style';
     st.textContent = css + `#codex-cache-hud:not([data-gen="${GEN}"]){display:none!important}`;
@@ -180,8 +179,8 @@
       const rl = usage?.rate_limit;
       if (rl) {
         for (const [k, win, lbl, hv] of [
-          ['primary_window', '5h', '五小時', hover5h],
           ['secondary_window', 'week', '每週', hoverWk],
+          ['primary_window', '5h', '五小時', hover5h],
         ]) {
           const w = rl[k];
           if (!w || w.used_percent == null) continue;
@@ -192,29 +191,29 @@
           buckets.push({ window: win, label: lbl, remaining: rem, used: Math.round(used * 10) / 10, reset: rst });
         }
       } else if (childRem && (childRem.fiveHour != null || childRem.weekly != null)) {
-        if (childRem.fiveHour != null) {
-          const rem = Math.max(0, Math.min(100, Math.round(Number(childRem.fiveHour))));
-          buckets.push({ window: '5h', label: '五小時', remaining: rem, used: 100 - rem, reset: hover5h });
-        }
         if (childRem.weekly != null) {
           const rem = Math.max(0, Math.min(100, Math.round(Number(childRem.weekly))));
           buckets.push({ window: 'week', label: '每週', remaining: rem, used: 100 - rem, reset: hoverWk });
         }
-      } else {
-        const desc = (typeof btn.getAttribute === 'function' && btn.getAttribute('aria-description')) || '';
-        const m5 = desc.match(/5\s*(?:小時|h)[^0-9]*([0-9]{1,3})\s*%/i);
-        const mw = desc.match(/(?:每週|week)[^0-9]*([0-9]{1,3})\s*%/i);
-        if (m5) {
-          const rem = Math.max(0, Math.min(100, Number(m5[1])));
+        if (childRem.fiveHour != null) {
+          const rem = Math.max(0, Math.min(100, Math.round(Number(childRem.fiveHour))));
           buckets.push({ window: '5h', label: '五小時', remaining: rem, used: 100 - rem, reset: hover5h });
         }
+      } else {
+        const desc = (typeof btn.getAttribute === 'function' && btn.getAttribute('aria-description')) || '';
+        const mw = desc.match(/(?:每週|week)[^0-9]*([0-9]{1,3})\s*%/i);
+        const m5 = desc.match(/5\s*(?:小時|h)[^0-9]*([0-9]{1,3})\s*%/i);
         if (mw) {
           const rem = Math.max(0, Math.min(100, Number(mw[1])));
           buckets.push({ window: 'week', label: '每週', remaining: rem, used: 100 - rem, reset: hoverWk });
         }
+        if (m5) {
+          const rem = Math.max(0, Math.min(100, Number(m5[1])));
+          buckets.push({ window: '5h', label: '五小時', remaining: rem, used: 100 - rem, reset: hover5h });
+        }
       }
       if (!buckets.length) return null;
-      return [{ name: 'Codex / GPT', plan: usage?.plan_type || 'plus', buckets }];
+      return [{ name: t('週額度 / 五小額度', 'Weekly / 5h'), plan: usage?.plan_type || 'plus', buckets }];
     } catch {
       return null;
     }
@@ -226,16 +225,20 @@
     const q = r.querySelector('.quota');
     const groups = readLiveQuota() || data?.quota || [];
     if (!groups.length) {
-      q.textContent = 'Codex';
+      q.textContent = t('週額度 / 五小額度', 'Weekly / 5h');
       return;
     }
     q.innerHTML = groups.map((g) => {
-      return `<span>${esc(g.name)}</span>` + (g.buckets || []).map((b) => {
+      const label = (!g.name || g.name === 'Codex' || g.name === 'Codex / GPT')
+        ? t('週額度 / 五小額度', 'Weekly / 5h')
+        : g.name;
+      const ordered = [...(g.buckets || [])].sort((a, b) => (a.window === 'week' ? -1 : 1) - (b.window === 'week' ? -1 : 1));
+      return `<span>${esc(label)}</span>` + ordered.map((b) => {
         const p = b.remaining ?? 0;
         const rstText = LANG === 'en'
           ? String(b.reset || '').replace(' 已重置', ' already reset').replace(' 重置', ' reset')
           : String(b.reset || '');
-        return ring(p, `${g.name} ${b.window === '5h' ? t('五小時', '5-hour') : b.window === 'week' ? t('每週', 'weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%)${rstText ? ', ' + rstText : ''}`);
+        return ring(p, `${b.window === '5h' ? t('五小額度（5 小時）', '5-hour') : b.window === 'week' ? t('週額度（每週）', 'Weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%)${rstText ? ', ' + rstText : ''}`);
       }).join('');
     }).join('<span class="sep">｜</span>');
   }

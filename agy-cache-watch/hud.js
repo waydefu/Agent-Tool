@@ -63,8 +63,7 @@
   function mount() {
     if (root && document.body.contains(root)) return root;
     if (!document.body || !document.head) return null;
-    document.getElementById('agy-cache-hud')?.remove();
-    document.getElementById('agy-cache-hud-style')?.remove();
+    document.querySelectorAll('#agy-cache-hud, #agy-cache-hud-style').forEach((el) => el.remove());
     const st = document.createElement('style'); st.id = 'agy-cache-hud-style';
     st.textContent = css + `#agy-cache-hud:not([data-gen="${GEN}"]){display:none!important}`; document.head.appendChild(st);
     root = document.createElement('div'); root.id = 'agy-cache-hud'; root.dataset.gen = GEN;

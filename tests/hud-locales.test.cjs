@@ -24,7 +24,7 @@ function runHud(file, lang) {
     readyState: 'loading', title: '', body: { contains: () => true, appendChild() {} },
     head: { appendChild() {} },
     createElement: (tag) => tag === 'div' ? root : { textContent: '', id: '' },
-    getElementById: () => null, querySelector: () => null,
+    getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
   };
   const window = { __agentToolLang: lang, __APP_CONFIG__: { csrfToken: '' } };
   const context = {
@@ -163,6 +163,7 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
     head: { appendChild() {} },
     createElement: (tag) => tag === 'div' ? root : { textContent: '', id: '' },
     getElementById: () => null,
+    querySelectorAll: () => [],
     querySelector: (sel) => sel.includes('aria-description') ? liveBtn : null,
   };
   const window = { __agentToolLang: 'zh-TW' };
@@ -178,6 +179,6 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
     quota: [{ name: 'Codex', plan: 'plus', buckets: [{ label: '五小時', window: '5h', remaining: 84, used: 16, reset: 'stale' }] }],
     models: [], recent: [],
   });
-  assert.match(quota.innerHTML, /五小時 限額剩餘 9% \(已用 91%\)/);
-  assert.match(quota.innerHTML, /每週 限額剩餘 86% \(已用 14%\)/);
+  assert.match(quota.innerHTML, /<span>週額度 \/ 五小額度<\/span>/);
+  assert.match(quota.innerHTML, /週額度（每週） 限額剩餘 86% \(已用 14%\).*五小額度（5 小時） 限額剩餘 9% \(已用 91%\)/);
 });
