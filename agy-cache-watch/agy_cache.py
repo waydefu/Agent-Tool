@@ -324,6 +324,101 @@ h2{font-size:13px;color:#9a9aa3;font-weight:500;margin:18px 0 6px}
     return path
 
 
+
+def summary_en(days):
+    """English terminal summary; data and cache calculations remain language-independent."""
+    per_model, convs = collect(days)
+    if not per_model:
+        print("No conversation usage records found (the app must have generated new-format logs).")
+        return
+    print("== Cache hit rate by model (cached input / total input)")
+    print("%-28s %6s %8s %12s %12s %8s" % ("Model", "Calls", "Hit rate", "Uncached", "Cached", "0% calls"))
+    for model, (n, u, c, o, z) in sorted(per_model.items(), key=lambda x: -x[1][0]):
+        print("%-28s %6d %6.1f%% %12d %12d %8d  %s" % (model[:28], n, rate(u, c), u, c, z, bar(rate(u, c))))
+    if convs and convs[0][3]:
+        bd = convs[0][3]
+        print("\n== Latest context breakdown (%s): %.1f%% used (%s / %s)" %
+              (convs[0][0][:8], bd["used_pct"], "{:,}".format(bd["used"]), "{:,}".format(bd["limit"])))
+        for item in bd["cats"]:
+            print("  %-22s %10s %5.1f%%" % (
+                item.get("raw") or item["name"], "{:,}".format(item["tokens"]),
+                100.0 * item["tokens"] / (bd["limit"] or 1)))
+        print("  %-22s %10s" % ("Since last update", "{:,}".format(bd["since_last"])))
+        print("  %-22s %10s" % ("Available", "{:,}".format(bd["available"])))
+    print("\n== Recent conversations")
+    for cid, timestamp, calls, _ in convs[:10]:
+        un = sum(x[1][1] for x in calls)
+        cr = sum(x[1][2] for x in calls)
+        print("%s  %s  %4d calls  %5.1f%%  %s" %
+              (timestamp, cid[:8], len(calls), rate(un, cr), bar(rate(un, cr))))
+
+
+def watch_en(interval):
+    """Show only new calls after startup, without echoing private conversation titles."""
+    seen = {}
+    print("Monitoring every %d seconds; new calls only. Ctrl+C to stop." % interval)
+    while True:
+        for file in conversations(days=1)[:3]:
+            try:
+                calls = read_db(file)
+            except sqlite3.Error:
+                continue
+            start = seen.get(file, len(calls))
+            for idx, (model, u, c, o) in calls[start:]:
+                print("%s %s #%d %-24s hit %5.1f%% uncached %7d cached %7d output %6d" % (
+                    time.strftime("%H:%M:%S"), os.path.basename(file)[:8], idx,
+                    model[:24], rate(u, c), u, c, o))
+            seen[file] = len(calls)
+        time.sleep(interval)
+
+
+def html_report_en(days, refresh):
+    """Create a self-contained English HTML report with escaped source-controlled labels."""
+    from html import escape
+    per_model, convs = collect(days)
+    uncached = sum(s[1] for s in per_model.values())
+    cached = sum(s[2] for s in per_model.values())
+    output = sum(s[3] for s in per_model.values())
+    total = cached + uncached + output or 1
+    fmt = lambda n: "{:,}".format(n)
+    categories = [("Cached input", cached, "#2f81f7"),
+                  ("Uncached input", uncached, "#f0883e"), ("Output", output, "#2ea39b")]
+    legend = "".join(
+        '<div class="row"><span>%s</span><b>%s</b><em>%.1f%%</em></div>' %
+        (name, fmt(value), 100.0 * value / total) for name, value, _ in categories
+    )
+    bars = "".join('<span style="width:%.2f%%;background:%s"></span>' %
+                   (100.0 * value / total, color) for _, value, color in categories)
+    models = "".join('<div class="row"><span>%s</span><b>%d calls</b><em>%.1f%%</em></div>' %
+                     (escape(model), s[0], rate(s[1], s[2]))
+                     for model, s in sorted(per_model.items(), key=lambda x: -x[1][0]))
+    recent = "".join('<div class="row"><span>%s · %s</span><b>%d calls</b><em>%.1f%%</em></div>' %
+                     (escape(timestamp), escape(cid[:8]), len(calls),
+                      rate(sum(x[1][1] for x in calls), sum(x[1][2] for x in calls)))
+                     for cid, timestamp, calls, _ in convs[:8])
+    meta_refresh = '<meta http-equiv="refresh" content="%d">' % refresh if refresh else ''
+    page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">{meta_refresh}
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Antigravity usage report</title>
+    <style>body{{background:#19191f;color:#e6e6ea;font:14px/1.5 system-ui;margin:24px}}
+    main{{max-width:650px;margin:auto}}section{{background:#262630;padding:16px;border-radius:10px;margin:14px 0}}
+    .row{{display:grid;grid-template-columns:1fr auto 80px;gap:12px;padding:4px 0}}
+    .row em{{text-align:right;font-style:normal}}.bar{{display:flex;height:7px;background:#333;border-radius:4px;overflow:hidden}}
+    .bar span{{height:100%}}small{{color:#aaa}}h2{{font-size:16px}}</style></head>
+    <body><main><h1>Antigravity usage report</h1>
+    <p>Cache hit: {rate(uncached, cached):.1f}% · {fmt(total)} tokens (input + output)</p>
+    <section><h2>Token breakdown</h2><div class="bar">{bars}</div>{legend}</section>
+    <section><h2>By model</h2>{models or '<p>No model data</p>'}</section>
+    <section><h2>Recent conversations</h2>{recent or '<p>No conversation data</p>'}</section>
+    <small>Updated {time.strftime("%Y-%m-%d %H:%M:%S")}. Sources: local conversation databases.
+    Internal formats are undocumented; not for billing or official quota verification.</small>
+    </main></body></html>"""
+    file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "report.en.html")
+    with open(file, "w", encoding="utf-8") as out:
+        out.write(page)
+    return file
+
+
 def selftest():
     def v(n):
         out = b""
@@ -348,6 +443,7 @@ def selftest():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=float)
+    ap.add_argument("--lang", choices=("zh-TW", "en"), default="zh-TW", help="輸出語言 / output language")
     ap.add_argument("--watch", type=int)
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--json", action="store_true", help="輸出 JSON（給 App 內的面板用，預設最近 7 天）")
@@ -384,18 +480,19 @@ if __name__ == "__main__":
                         "breakdown": bd} for cid, t, calls, bd in convs[:40]],
             "updated": time.strftime("%H:%M:%S")}, ensure_ascii=False))
     elif a.html:
-        path = html_report(a.days, a.every)
+        path = html_report_en(a.days, a.every) if a.lang == "en" else html_report(a.days, a.every)
         os.startfile(path)
         print("已開啟", path)
         try:
             while a.every:
-                time.sleep(a.every); html_report(a.days, a.every)
+                time.sleep(a.every)
+                (html_report_en if a.lang == "en" else html_report)(a.days, a.every)
         except KeyboardInterrupt:
             pass
     elif a.watch:
         try:
-            watch(a.watch)
+            (watch_en if a.lang == "en" else watch)(a.watch)
         except KeyboardInterrupt:
             pass
     else:
-        summary(a.days)
+        (summary_en if a.lang == "en" else summary)(a.days)
