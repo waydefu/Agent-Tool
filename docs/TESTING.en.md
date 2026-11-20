@@ -8,7 +8,7 @@ Use Python 3.12 and Node.js 22+ in the repository root to run the automated test
 python -m unittest discover -s tests -p "test_*.py" -v
 python -I agy-cache-watch/agy_cache.py --selftest
 python -I codex-cache-watch/codex_cache.py --selftest
-node --test tests/*.test.cjs
+node --test
 node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
 ```
 
