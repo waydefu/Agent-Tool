@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import sqlite3
+from contextlib import closing
 import tempfile
 import time
 import unittest
@@ -53,7 +54,7 @@ class UsageContractTests(unittest.TestCase):
                 "payload": {"turn_id": "turn-1", "usage": {
                     "input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}
             }) + "\n", encoding="utf-8")
-            with sqlite3.connect(state) as con:
+            with closing(sqlite3.connect(state)) as con:
                 con.execute("""CREATE TABLE threads (
                     id TEXT, title TEXT, model TEXT, tokens_used INTEGER,
                     updated_at_ms INTEGER, rollout_path TEXT,
@@ -67,6 +68,7 @@ class UsageContractTests(unittest.TestCase):
                 con.execute("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?,?,?)",
                             ("estimated", "歷史推估", "gpt-test", 250000, now, "",
                              "", "", "", ""))
+                con.commit()
             original = (cd.CODEX_DIR, cd.STATE_DB, cd.HIST_DB, cd.SESS_DIRS)
             try:
                 cd.CODEX_DIR = tmp
