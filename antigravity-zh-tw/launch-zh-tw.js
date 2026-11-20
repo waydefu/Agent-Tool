@@ -58,7 +58,7 @@ function isAntigravityPage(t) {
     const u = new URL(t.url || '');
     const appSchemes = new Set(['file:', 'app:', 'antigravity:', 'agy:', 'vscode-file:', 'vscode-webview:']);
     return appSchemes.has(u.protocol) ||
-      (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+      ((u.protocol === 'http:' || u.protocol === 'https:') && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
   } catch { return false; }
 }
 

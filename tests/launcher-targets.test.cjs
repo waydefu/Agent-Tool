@@ -32,6 +32,7 @@ function tab(url, port, ws = '127.0.0.1', title = 'App') {
 test('Antigravity accepts local app and local debug WebSocket', () => {
   assert.equal(ag.isAntigravityPage(tab('app://antigravity/index.html', 9339)), true);
   assert.equal(ag.isAntigravityPage(tab('http://localhost:3123/', 9339)), true);
+  assert.equal(ag.isAntigravityPage(tab('https://127.0.0.1:65389/c/65652377', 9339)), true);
   assert.equal(ag.isAntigravityPage(tab('https://evil.invalid/', 9339, '127.0.0.1', 'Antigravity')), false);
   assert.equal(ag.isAntigravityPage(tab('http://localhost.evil.invalid/', 9339)), false);
   assert.equal(ag.isAntigravityPage(tab('app://antigravity/', 9339, 'evil.invalid')), false);
