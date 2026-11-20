@@ -206,8 +206,8 @@
     renderQuota();
     const d = data, pill = r.querySelector('.pill b'), box = r.querySelector('.box');
     if (!d || !d.models || !d.models.length) {
-      pill.textContent = '無資料';
-      box.innerHTML = '<span class="muted">目前沒有對話用量紀錄。</span>';
+      pill.textContent = t('無資料', 'No data');
+      box.innerHTML = `<span class="muted">${t('目前沒有對話用量紀錄。', 'No conversation usage records available.')}</span>`;
       return;
     }
     const sel = selectedId();
@@ -226,14 +226,14 @@
     pill.textContent = pillHit + '%';
     pill.style.color = color(pillHit);
     r.querySelector('.pill').title = cur
-      ? `${isDetected ? '目前對話' : '最新對話'}（${cur.title}）快取命中率 ${pillHit}%｜上下文已用 ${cur.breakdown?.used_pct ?? 0}%`
-      : '全部對話快取命中率';
+      ? `${isDetected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')} (${cur.title}) ${t('快取命中率', 'cache hit rate')} ${pillHit}% · ${t('上下文已用', 'context used')} ${cur.breakdown?.used_pct ?? 0}%`
+      : t('全部對話快取命中率', 'Cache hit rate for all conversations');
 
     const order = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent)).flatMap((c) => [c, ...kids(c.id)]);
 
     let h = `<div class="tabs">` +
-      `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">快取與各模型統計</div>` +
-      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">上下文結構 (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
+      `<div class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">${t('快取與各模型統計', 'Cache & models')}</div>` +
+      `<div class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">${t('上下文結構', 'Context breakdown')} (${targetCtx?.breakdown?.used_pct ?? 0}%)</div>` +
       `</div>`;
 
     if (activeTab === 'context') {
@@ -243,33 +243,33 @@
         return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
       }).join('') + `</select>`;
       h += renderContextBreakdown(targetCtx);
-      h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
+      h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;;
       box.innerHTML = h;
       return;
     }
 
-    h += `<h4 style="margin-top:2px">${isDetected ? '目前對話' : '最新對話'}</h4>`;
+    h += `<h4 style="margin-top:2px">${isDetected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')}</h4>`;
     const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
     h += cur
       ? `<div class="cur">` +
-        (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>合計（主對話＋${ks.length} 個子代理）</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
+        (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
         head(cur) +
         ks.map(head).join('') +
         `</div>`
-      : `<div class="cur muted">沒有偵測到對話。</div>`;
+      : `<div class="cur muted">${t('沒有偵測到對話。', 'No conversation detected.')}</div>`;
 
     const tot = d.cache + d.uncached + d.output || 1;
-    const segs = [['快取讀取', d.cache, '#2f81f7'], ['未命中輸入', d.uncached, '#f0883e'], ['輸出', d.output, '#2ea39b']];
-    h += `<h4>近期全部：命中 ${d.hit}%（${wan(tot)} token）</h4>`;
+    const segs = [[t('快取讀取', 'Cached input'), d.cache, '#2f81f7'], [t('未命中輸入', 'Uncached input'), d.uncached, '#f0883e'], [t('輸出', 'Output'), d.output, '#2ea39b']];
+    h += `<h4>${t('近期全部：命中', 'Recent usage · cache hit')} ${d.hit}% (${wan(tot)} token)</h4>`;
     h += '<div class="bar">' + segs.map(([, v, c]) => `<span style="width:${(100 * v / tot).toFixed(2)}%;background:${c}"></span>`).join('') + '</div>';
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
 
-    h += '<h4>各模型</h4>' + d.models.map((m) =>
-      `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} 次・0% ${m.zero} 次</span><em>${m.hit}%</em></div>` +
-      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">其中子代理 ${esc(x.agent)}</span><span class="muted">${x.calls} 次・0% ${x.zero} 次</span><em>${x.hit}%</em></div>`).join('')
+    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) =>
+      `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} ${t('次', 'calls')} · 0% ${m.zero}</span><em>${m.hit}%</em></div>` +
+      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">${t('其中子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0% ${x.zero}</span><em>${x.hit}%</em></div>`).join('')
     ).join('');
 
-    h += '<h4>各對話（點一下展開，縮排＝子代理）</h4>' + order.map((c) =>
+    h += `<h4>${t('各對話（點一下展開，縮排＝子代理）', 'Conversations (select to expand; indented = subagents)')}</h4>` + order.map((c) =>
       `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
       (expanded.has(c.id) ? detail(c, true) : '')
     ).join('');
