@@ -35,8 +35,14 @@
 #agy-cache-hud .fold-hd:hover{color:#fff}
 #agy-cache-hud .fold-bd{padding:3px 0 4px 14px;max-height:140px;overflow:auto;font-size:11px;color:#9a9aa3}
 #agy-cache-hud .fold-bd div{padding:1.5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`;
+  const LANG = window.__agentToolLang === 'en' ? 'en' : 'zh-TW';
+  const t = (zh, en) => LANG === 'en' ? en : zh;
+  const categories = { '訊息': 'Chat messages', '系統工具': 'Built-in tools', 'MCP 工具': 'MCP tools',
+    '系統提示': 'System prompt', 'Skills': 'Skills', '外掛目錄 (Plugins)': 'Plugin catalog',
+    '使用者規則 (Rules)': 'User rules', '子代理定義 (Subagents)': 'Subagent definitions' };
+  const cat = (name) => LANG === 'en' ? (categories[name] || name) : name;
   const color = (h) => (h >= 70 ? '#2f81f7' : h >= 40 ? '#d29922' : '#f85149');
-  const wan = (n) => (n >= 10000 ? (n / 10000).toFixed(1) + '萬' : Number(n || 0).toLocaleString());
+  const wan = (n) => LANG === 'en' ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n || 0)) : (n >= 10000 ? (n / 10000).toFixed(1) + '萬' : Number(n || 0).toLocaleString());
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // 目前對話：對話主畫面的 data-cascade-id → 網址 /c/<id> → 側欄選取列 → 視窗標題開頭的對話名稱比對。
   const selectedId = () => {
@@ -61,7 +67,7 @@
     const st = document.createElement('style'); st.id = 'agy-cache-hud-style';
     st.textContent = css + `#agy-cache-hud:not([data-gen="${GEN}"]){display:none!important}`; document.head.appendChild(st);
     root = document.createElement('div'); root.id = 'agy-cache-hud'; root.dataset.gen = GEN;
-    root.innerHTML = '<span class="quota"></span><div class="pill">快取 <b>…</b></div><div class="box">讀取中…</div>';
+    root.innerHTML = `<span class="quota"></span><div class="pill">${t('快取', 'Cache')} <b>…</b></div><div class="box">${t('讀取中…', 'Loading…')}</div>`;
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
       const ctxEl = e.target.closest('[data-ctx-id]');
@@ -81,36 +87,36 @@
   }
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
-  const name = (c) => esc(c.agent ? '子代理 ' + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c, showCtxLink = false) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
-    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ 查看此對話的上下文結構明細（已使用 ${c.breakdown.used_pct}%・${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)}）</div>` : '');
+  const name = (c) => esc(c.agent ? t('子代理 ', 'Subagent ') + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
+  const detail = (c, showCtxLink = false) => `<div class="muted">${t('上下文', 'Context')} ${wan(c.context)} token · ${c.calls.length} ${t('次呼叫', 'calls')} · 0% ${t('命中', 'hits')}: ${c.zero} · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)}</div><div class="spark">` +
+    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)} · ${t('命中', 'Hit')} ${hit}% · ${t('快取', 'Cache')} ${wan(cr)} · ${t('未命中', 'Uncached')} ${wan(u)} · ${t('輸出', 'Output')} ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
+    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ ${t('查看此對話的上下文結構明細', 'View context breakdown')} (${c.breakdown.used_pct}% · ${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)})</div>` : '');
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
-    if (!b) return `<div class="cur muted">此對話尚無上下文結構紀錄。</div>`;
+    if (!b) return `<div class="cur muted">${t('此對話尚無上下文結構紀錄。', 'No context breakdown is available for this conversation.')}</div>`;
     const lim = b.limit || 512000;
     const pct = (v) => ((100 * (v || 0)) / lim).toFixed(1) + '%';
-    const barSegs = b.cats.map((x) => `<span style="width:${((100 * x.tokens) / lim).toFixed(2)}%;background:${x.color}" title="${esc(x.name)} ${wan(x.tokens)}"></span>`).join('');
+    const barSegs = b.cats.map((x) => `<span style="width:${((100 * x.tokens) / lim).toFixed(2)}%;background:${x.color}" title="${esc(cat(x.name))} ${wan(x.tokens)}"></span>`).join('');
 
-    let h = `<div class="ctx-head"><span>已使用 ${b.used_pct}%</span><small>${wan(b.used)} / ${wan(lim)}</small></div>`;
+    let h = `<div class="ctx-head"><span>${t('已使用', 'Used')} ${b.used_pct}%</span><small>${wan(b.used)} / ${wan(lim)}</small></div>`;
     h += `<div class="bar" style="height:7px">${barSegs}</div>`;
-    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">資料直接解碼自 Antigravity 本機 gen_metadata (Field 1.9.10) 官方精確計數。</div>`;
+    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">${t('資料直接解碼自 Antigravity 本機 gen_metadata (Field 1.9.10) 官方精確計數。', 'Decoded from Antigravity local gen_metadata (Field 1.9.10); internal format is undocumented and may change.')}</div>`;
 
     h += b.cats.map((x) => {
       const hasList = b.lists && b.lists[x.name];
       const cls = hasList ? ' class="dotted"' : '';
-      return `<div class="row"><i style="background:${x.color}"></i><span${cls}>${esc(x.name)}</span><span>${wan(x.tokens)}</span><em>${pct(x.tokens)}</em></div>`;
+      return `<div class="row"><i style="background:${x.color}"></i><span${cls}>${esc(cat(x.name))}</span><span>${wan(x.tokens)}</span><em>${pct(x.tokens)}</em></div>`;
     }).join('');
 
-    h += `<div class="row" style="margin-top:4px"><i style="background:#7a7a85"></i><span>自上次更新以來</span><span>${wan(b.since_last)}</span><em>${pct(b.since_last)}</em></div>`;
-    h += `<div class="row"><i style="background:#2b2b33"></i><span>可用空間</span><span>${wan(b.available)}</span><em>${pct(b.available)}</em></div>`;
+    h += `<div class="row" style="margin-top:4px"><i style="background:#7a7a85"></i><span>${t('自上次更新以來', 'Since last update')}</span><span>${wan(b.since_last)}</span><em>${pct(b.since_last)}</em></div>`;
+    h += `<div class="row"><i style="background:#2b2b33"></i><span>${t('可用空間', 'Available')}</span><span>${wan(b.available)}</span><em>${pct(b.available)}</em></div>`;
 
     const folds = Object.entries(b.lists || {});
     if (folds.length) {
       h += `<div class="fold">` + folds.map(([k, arr]) => {
         const isOpen = openFolds.has(k);
-        return `<div class="fold-hd" data-fold="${esc(k)}"><span>${isOpen ? '▾' : '▸'} ${esc(k)}</span><span class="muted">${arr.length}</span></div>` +
+        return `<div class="fold-hd" data-fold="${esc(k)}"><span>${isOpen ? '▾' : '▸'} ${esc(cat(k))}</span><span class="muted">${arr.length}</span></div>` +
           (isOpen ? `<div class="fold-bd">${arr.map((item) => `<div>・${esc(item)}</div>`).join('')}</div>` : '');
       }).join('') + `</div>`;
     }
