@@ -7,6 +7,7 @@ const fs = require('fs');
 
 const PORT = 9340;
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
+process.env.AGENT_TOOL_LANG = LANG; // Pass language to the PowerShell restart helper.
 const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
 const LOG = path.join(__dirname, 'launch-codex-hud.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
@@ -38,7 +39,23 @@ function isChatGptRunning() {
 
 function bringExistingToFrontAndWarn() {
   // 若舊的 ChatGPT 已經在沒有除錯埠（9340）的狀態下執行，先把視窗喚醒到最前面，並彈出提示詢問是否自動安全重啟以掛載面板。
-  const ps = `
+  const ps = LANG === 'en' ? `
+Add-Type -AssemblyName System.Windows.Forms
+$ans = [System.Windows.Forms.MessageBox]::Show(
+  "ChatGPT / Codex is already running without debugging port 9340. The usage HUD cannot attach to that window." + [Environment]::NewLine + [Environment]::NewLine +
+  "Yes: check for active work, then safely restart ChatGPT with the HUD enabled." + [Environment]::NewLine +
+  "No: keep the current session and bring its window to the foreground.",
+  "ChatGPT / Codex Usage HUD",
+  [System.Windows.Forms.MessageBoxButtons]::YesNo,
+  [System.Windows.Forms.MessageBoxIcon]::Information
+)
+if ($ans -eq [System.Windows.Forms.DialogResult]::Yes) {
+  Write-Output "RESTART"
+} else {
+  Start-Process explorer.exe "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App"
+  Write-Output "ACTIVATE"
+}
+` : `
 Add-Type -AssemblyName System.Windows.Forms
 $ans = [System.Windows.Forms.MessageBox]::Show(
   "偵測到 ChatGPT / Codex 已經在背景執行（舊視窗未開啟除錯埠 9340，無法直接掛載右上角快取與額度面板）。" + [Environment]::NewLine + [Environment]::NewLine +
