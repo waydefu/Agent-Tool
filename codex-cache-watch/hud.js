@@ -137,17 +137,21 @@
       `<text x="10.5" y="13.2" text-anchor="middle" font-size="${p >= 100 ? 6.5 : 8}" fill="#e6e6e6">${p}</text></svg>`;
   };
 
+  let lastQuotaRefetch = 0;
   function fmtReset(sec, hoverText) {
     const ts = Number(sec);
+    const hv = hoverText ? String(hoverText).trim() : '';
     if (Number.isFinite(ts) && ts > 0) {
       const d = new Date(ts * 1000);
       if (!Number.isNaN(d.getTime())) {
         const pad = (n) => String(n).padStart(2, '0');
         const stamp = `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        return `${stamp} ${t('重置', 'reset')}`;
+        const passed = ts * 1000 <= Date.now();
+        if (passed) return `${stamp} ${t('已重置', 'already reset')}`;
+        return `${stamp} ${t('重置', 'reset')}${hv ? `（${hv}）` : ''}`;
       }
     }
-    return hoverText ? String(hoverText) : '';
+    return hv;
   }
 
   function readLiveQuota() {
@@ -156,38 +160,54 @@
       const btn = document.querySelector('button[aria-description*="5"], button[aria-label="使用額度"], button[aria-label*="Usage"], button[aria-label*="limit"]');
       if (!btn) return null;
       const fk = Object.keys(btn).find((k) => k.startsWith('__reactFiber$'));
-      let usage = null, menuData = null, childRem = null;
+      let usage = null, menuData = null, childRem = null, qc = null;
       if (fk && btn[fk]) {
         let cur = btn[fk];
         if (cur.child?.memoizedProps?.remaining) childRem = cur.child.memoizedProps.remaining;
         for (let i = 0; i < 45 && cur; i++, cur = cur.return) {
           let s = cur.memoizedState;
-          for (let j = 0; j < 25 && s; j++, s = s.next) {
+          for (let j = 0; j < 30 && s; j++, s = s.next) {
             const v = s.memoizedState;
             if (v && typeof v === 'object' && !Array.isArray(v)) {
               if (v.usage?.rate_limit) usage = v.usage;
               if (v.data?.menu?.rows) menuData = v.data;
+              if (v.current?.queryClient) qc = v.current.queryClient;
             }
           }
-          if (usage) break;
+          if (usage && qc) break;
+        }
+      }
+      const nowSec = Date.now() / 1000;
+      const rl = usage?.rate_limit;
+      if (qc && typeof qc.invalidateQueries === 'function') {
+        const pRst = Number(rl?.primary_window?.reset_at || rl?.primary_window?.resets_at || 0);
+        const sRst = Number(rl?.secondary_window?.reset_at || rl?.secondary_window?.resets_at || 0);
+        const expired = (pRst > 0 && pRst <= nowSec) || (sRst > 0 && sRst <= nowSec);
+        const minGap = expired ? 15000 : 60000;
+        if (Date.now() - lastQuotaRefetch > minGap) {
+          lastQuotaRefetch = Date.now();
+          try { qc.invalidateQueries({ queryKey: ['rate-limit-status'] }); } catch {}
         }
       }
       const rows = menuData?.menu?.rows || [];
       const hover5h = rows[0]?.hover?.text || '';
       const hoverWk = rows[1]?.hover?.text || '';
       const buckets = [];
-      const rl = usage?.rate_limit;
       if (rl) {
-        for (const [k, win, lbl, hv] of [
-          ['secondary_window', 'week', '每週', hoverWk],
-          ['primary_window', '5h', '五小時', hover5h],
+        const wins = [rl.primary_window, rl.secondary_window].filter(Boolean);
+        const wkWin = wins.find((w) => w.limit_window_seconds && Math.abs(w.limit_window_seconds - 604800) <= 60) || rl.secondary_window;
+        const fhWin = wins.find((w) => w.limit_window_seconds && Math.abs(w.limit_window_seconds - 18000) <= 60) || rl.primary_window;
+        for (const [w, win, lbl, hv] of [
+          [wkWin, 'week', '每週', hoverWk],
+          [fhWin, '5h', '五小時', hover5h],
         ]) {
-          const w = rl[k];
           if (!w || w.used_percent == null) continue;
-          const used = Number(w.used_percent);
+          let used = Number(w.used_percent);
           if (!Number.isFinite(used) || used < 0 || used > 100) continue;
+          const rstTs = Number(w.reset_at || w.resets_at || 0);
+          if (rstTs > 0 && rstTs <= nowSec) used = 0;
           const rem = Math.max(0, Math.min(100, Math.round(100 - used)));
-          const rst = fmtReset(w.reset_at || w.resets_at, hv);
+          const rst = fmtReset(rstTs, hv);
           buckets.push({ window: win, label: lbl, remaining: rem, used: Math.round(used * 10) / 10, reset: rst });
         }
       } else if (childRem && (childRem.fiveHour != null || childRem.weekly != null)) {
