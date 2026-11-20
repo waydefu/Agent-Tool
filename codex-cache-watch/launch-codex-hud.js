@@ -168,7 +168,7 @@ function isMainPage(t) {
         if (await inject(t)) {
           done.add(t.id);
           newlyInjected = true;
-          log(`injected: ${t.title} ${t.url}`);
+          log('injected approved app target');
         }
       }
       if (hud && (newlyInjected || tick++ % 15 === 0)) {

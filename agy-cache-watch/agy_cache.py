@@ -47,7 +47,10 @@ def fields(buf):
                 raise ValueError("truncated")
             v, i = buf[i:i + ln], i + ln
         elif wt in (1, 5):
-            i += 8 if wt == 1 else 4
+            width = 8 if wt == 1 else 4
+            if i + width > n:
+                raise ValueError("truncated fixed-width field")
+            i += width
             v = None
         else:
             raise ValueError("wire type %d" % wt)

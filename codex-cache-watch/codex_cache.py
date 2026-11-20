@@ -405,17 +405,6 @@ def collect(days=30):
             """,
             (cut_ms,),
         ).fetchall()
-        if len(rows) < 25:
-            rows = con.execute(
-                """
-                select id, title, model, tokens_used, updated_at_ms, rollout_path,
-                       agent_nickname, agent_role, attached_thread_parent_id, source
-                from threads
-                order by updated_at_ms desc
-                limit 35
-                """
-            ).fetchall()
-
         for r in rows:
             cid, _, _, _, _, _, nick, role, att_p, src = r
             p_id = att_p or edges.get(cid) or ""

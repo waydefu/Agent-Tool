@@ -96,7 +96,7 @@ function inject(target) {
       misses = 0;
       for (const t of list) {
         if (done.has(t.id) || !isAntigravityPage(t)) continue;
-        if (await inject(t)) { done.add(t.id); log(`injected: ${t.title} ${t.url}`); }
+        if (await inject(t)) { done.add(t.id); log('injected approved app target'); }
       }
       // 每 30 秒（第一次立即）更新快取命中面板。
       if (hud && tick++ % 15 === 0) {
