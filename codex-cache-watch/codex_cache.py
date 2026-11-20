@@ -20,6 +20,7 @@
 """
 import argparse, glob, json, os, re, sqlite3, sys, time
 from collections import defaultdict
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HOME = os.path.expanduser("~")
@@ -79,7 +80,7 @@ def default_host_lists():
     return skills, mems
 
 
-def parse_rollout(path, default_model="gpt-6"):
+def parse_rollout(path, default_model="unknown"):
     """解析單一 rollout-*.jsonl，回傳 (calls, breakdown, rate_limits, rate_ts)。
     calls: [(idx, (model, uncached, cache_read, output, total_input))]
     """
@@ -98,7 +99,7 @@ def parse_rollout(path, default_model="gpt-6"):
     skills_list, mem_list, agents_list = [], [], []
     ctx_window = 475000
     calls = []
-    cur_model = default_model or "gpt-6"
+    cur_model = default_model or "unknown"
     last_input = 0
     prev_turn_end_input = 0
     cur_turn_id = None
@@ -316,7 +317,7 @@ def estimate_from_sqlite(cid, model, tokens_used, hist_con, host_skills, host_me
         else:
             cr = round(inp * min(0.96, 0.84 + 0.11 * (i / n_calls)))
         un = max(0, inp - cr)
-        calls.append((i + 1, (model or "gpt-6", un, cr, out, inp)))
+        calls.append((i + 1, (model or "unknown", un, cr, out, inp)))
 
     ctx_window = 475000
     last_input = min(ctx_window - 20000, max(base_prompt + round(item_bytes / 4.2), calls[-1][1][4]))
@@ -376,11 +377,11 @@ def collect(days=30):
     if not os.path.exists(STATE_DB):
         return per_model, convs, None
 
-    con = sqlite3.connect("file:%s?mode=ro" % STATE_DB.replace("\\", "/"), uri=True, timeout=1.0)
+    con = sqlite3.connect(Path(STATE_DB).resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)
     hist_con = None
     if os.path.exists(HIST_DB):
         try:
-            hist_con = sqlite3.connect("file:%s?mode=ro" % HIST_DB.replace("\\", "/"), uri=True, timeout=1.0)
+            hist_con = sqlite3.connect(Path(HIST_DB).resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)
         except sqlite3.Error:
             hist_con = None
 
@@ -405,17 +406,6 @@ def collect(days=30):
             """,
             (cut_ms,),
         ).fetchall()
-        if len(rows) < 25:
-            rows = con.execute(
-                """
-                select id, title, model, tokens_used, updated_at_ms, rollout_path,
-                       agent_nickname, agent_role, attached_thread_parent_id, source
-                from threads
-                order by updated_at_ms desc
-                limit 35
-                """
-            ).fetchall()
-
         for r in rows:
             cid, _, _, _, _, _, nick, role, att_p, src = r
             p_id = att_p or edges.get(cid) or ""
@@ -508,7 +498,14 @@ def format_quota(rl):
         b = rl.get(key)
         if not isinstance(b, dict):
             continue
-        used = float(b.get("used_percent") or 0.0)
+        if b.get("used_percent") is None:
+            continue  # Unknown is not the same as 0% used.
+        try:
+            used = float(b["used_percent"])
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= used <= 100):
+            continue
         rem = max(0, min(100, round(100.0 - used)))
         rst = b.get("resets_at")
         rst_str = time.strftime("%m/%d %H:%M", time.localtime(rst)) + " 重置" if rst else ""
@@ -519,7 +516,7 @@ def format_quota(rl):
             "used": round(used, 1),
             "reset": rst_str,
         })
-    return [{"name": "Codex / GPT", "plan": rl.get("plan_type") or "plus", "buckets": buckets}]
+    return [{"name": "Codex / GPT", "plan": rl.get("plan_type") or "unknown", "buckets": buckets}]
 
 
 def build_json(days=30):
@@ -591,7 +588,7 @@ def summary(days):
     if not d["models"]:
         print("找不到可驗證的真實用量紀錄；歷史推估資料不計入命中率統計。")
         return
-    print("== 各模型快取命中率（命中率 = 快取讀取 ÷ 全部輸入）")
+    print("== 各模型快取命中率（最近最多40筆對話；命中率 = 快取讀取 ÷ 全部輸入）")
     print("%-24s %6s %8s %10s" % ("模型", "呼叫", "命中率", "0%次數"))
     for m in d["models"]:
         print("%-24s %6d %6.1f%% %8d  %s" % (m["name"][:24], m["calls"], m["hit"], m["zero"], bar(m["hit"])))
@@ -669,6 +666,102 @@ def html_report(days, refresh):
     return path
 
 
+
+def category_en(name):
+    return {
+        "訊息": "Messages", "系統工具": "Built-in tools", "MCP 工具": "MCP tools",
+        "系統提示": "System prompt", "Skills": "Skills",
+        "MCP 伺服器指示": "MCP server instructions",
+        "記憶檔案": "Memory files", "自訂代理": "Custom agents",
+    }.get(name, name)
+
+
+def summary_en(days):
+    """Print English statistics without mixing SQLite estimates into measured totals."""
+    d = build_json(days or 30)
+    for group in d["quota"]:
+        buckets = " | ".join(
+            "%s remaining %s%% (%s)" %
+            ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"], b["reset"].replace(" 重置", " reset"))
+            for b in group["buckets"]
+        )
+        print("== %s quota (%s): %s" % (group["name"], group["plan"], buckets))
+    if not d["models"]:
+        print("No measured usage data found. Historical SQLite-only estimates are excluded from measured totals.")
+    else:
+        print("== Cache hit rate by model (up to 40 latest threads; cached / total input)")
+        print("%-24s %6s %10s %12s" % ("Model", "Calls", "Hit rate", "0% calls"))
+        for m in d["models"]:
+            print("%-24s %6d %9.1f%% %12d %s" %
+                  (m["name"][:24], m["calls"], m["hit"], m["zero"], bar(m["hit"])))
+            for sub in m["subs"]:
+                print("  └ Subagent %-14s %6d %9.1f%%" %
+                      (sub["agent"][:14], sub["calls"], sub["hit"]))
+    if d["recent"] and d["recent"][0].get("breakdown"):
+        current = d["recent"][0]
+        bd = current["breakdown"]
+        source = "measured input, estimated categories" if bd.get("source") == "rollout" else "historical estimate only"
+        print("\n== Latest context: %s (%.1f%% used, %s / %s; %s)" % (
+            current["title"], bd["used_pct"], "{:,}".format(bd["used"]),
+            "{:,}".format(bd["limit"]), source))
+        for c in bd["cats"]:
+            print("  %-25s %12s" % (category_en(c["name"]), "{:,}".format(c["tokens"])))
+        print("  %-25s %12s" % ("Available", "{:,}".format(bd["available"])))
+    print("\n== Recent conversations")
+    for c in d["recent"][:10]:
+        marker = " [estimated]" if c.get("estimated") else ""
+        print("%s %s %s%s | %d calls | %.1f%%" %
+              (c["time"], c["id"][:8], c["title"][:45], marker,
+               len(c["calls"]), c["hit"]))
+
+
+def html_report_en(days, refresh):
+    """Generate a standalone English HTML report; escape user-controlled conversation titles."""
+    import html as H
+    d = build_json(days or 30)
+    total = d["cache"] + d["uncached"] + d["output"] or 1
+    vals = (("Cached input", d["cache"], "#2f81f7"),
+            ("Uncached input", d["uncached"], "#f0883e"),
+            ("Output", d["output"], "#2ea39b"))
+    fmt = lambda n: "{:,}".format(n)
+    rows = "".join(
+        '<div class="row"><span>%s</span><b>%s</b><em>%.1f%%</em></div>' %
+        (label, fmt(value), 100 * value / total) for label, value, _ in vals
+    )
+    bars = "".join('<span style="width:%.2f%%;background:%s"></span>' %
+                   (100 * value / total, color) for _, value, color in vals)
+    models = "".join(
+        '<div class="row"><span>%s</span><b>%d calls</b><em>%.1f%%</em></div>' %
+        (H.escape(m["name"]), m["calls"], m["hit"]) for m in d["models"]
+    )
+    convs = "".join(
+        '<div class="row"><span>%s%s</span><b>%d calls</b><em>%.1f%%</em></div>' %
+        (H.escape(c["title"]), " (estimated)" if c.get("estimated") else "",
+         len(c["calls"]), c["hit"]) for c in d["recent"][:10]
+    )
+    meta_refresh = '<meta http-equiv="refresh" content="%d">' % refresh if refresh else ''
+    page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">{meta_refresh}
+    <meta name="viewport" content="width=device-width,initial-scale=1"><title>Codex usage report</title>
+    <style>body{{background:#19191f;color:#e6e6ea;font:14px/1.5 system-ui;margin:24px}}
+    main{{max-width:650px;margin:auto}}section{{background:#262630;padding:16px;border-radius:10px;margin:14px 0}}
+    .row{{display:grid;grid-template-columns:1fr auto 80px;gap:12px;padding:4px 0;overflow-wrap:anywhere}}
+    .row em{{text-align:right;font-style:normal}}.bar{{display:flex;height:7px;background:#333;border-radius:4px;overflow:hidden}}
+    .bar span{{height:100%}}small{{color:#aaa}}h2{{font-size:16px}}</style></head>
+    <body><main><h1>Codex usage report</h1>
+    <p>Measured cache hit: {d['hit']:.1f}% · {fmt(total)} tokens (input + output)</p>
+    <section><h2>Measured token breakdown</h2><div class="bar">{bars}</div>{rows}</section>
+    <section><h2>By model</h2>{models or '<p>No measured model data</p>'}</section>
+    <section><h2>Recent conversations</h2>{convs or '<p>No conversation data</p>'}</section>
+    <small>Updated {H.escape(d['updated'])}. Local usage data only.
+    Historical SQLite-only rows are estimated and excluded from measured model totals.
+    Even with rollout logs, context category allocation is an approximation; not for billing.</small>
+    </main></body></html>"""
+    file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "report.en.html")
+    with open(file, "w", encoding="utf-8") as out:
+        out.write(page)
+    return file
+
+
 def selftest():
     assert abs(rate(3237, 16228) - 83.37) < 0.01
     assert wan(205680) == "20.6萬"
@@ -683,6 +776,7 @@ def selftest():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=float, default=30)
+    ap.add_argument("--lang", choices=("zh-TW", "en"), default="zh-TW", help="輸出語言 / output language")
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--html", action="store_true")
@@ -693,8 +787,8 @@ if __name__ == "__main__":
     elif a.json:
         print(json.dumps(build_json(a.days), ensure_ascii=False))
     elif a.html:
-        p = html_report(a.days, a.every)
+        p = html_report_en(a.days, a.every) if a.lang == "en" else html_report(a.days, a.every)
         os.startfile(p)
         print("已開啟", p)
     else:
-        summary(a.days)
+        (summary_en if a.lang == "en" else summary)(a.days)

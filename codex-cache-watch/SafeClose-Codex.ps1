@@ -4,11 +4,12 @@
 #  (1) 血緣鎖：父行程必須在 Codex 的真實行程樹內，且子行程建立時間 >= 父行程建立時間（排除 Windows PID 重用誤判）。
 #  (2) 路徑與祖先白名單鎖：子行程本身或其直線 Codex 祖先必須明確帶有 `.codex`、`OpenAI\Codex`、`WindowsApps\OpenAI.Codex` 或為 Codex 直屬 MCP 行程，且命令列不得含有 `.claude`、`.gemini`、`antigravity`、`hermes`、`cursor`。
 $ErrorActionPreference = 'SilentlyContinue'
+$script:AgentToolEnglish = $env:AGENT_TOOL_LANG -eq 'en'
 
 $baseNames = @('ChatGPT', 'codex', 'codex-code-mode-host', 'codex-command-runner', 'codex-computer-use-swift')
 $procs = @(Get-Process -Name $baseNames -ErrorAction SilentlyContinue)
 if (-not $procs) {
-    Write-Host 'Codex 目前沒有在執行。'
+    Write-Host $(if ($script:AgentToolEnglish) { 'Codex is not running.' } else { 'Codex 目前沒有在執行。' })
     Start-Sleep 2
     return
 }
@@ -93,16 +94,16 @@ $recent = Get-ChildItem $sess -Recurse -File -Filter *.jsonl -ErrorAction Silent
 $busy = @()
 if ($activeKids.Count -gt 0) {
     $names = ($activeKids | ForEach-Object { "$($_.Name) (PID $($_.ProcessId))" } | Select-Object -Unique) -join ', '
-    $busy += "還有執行中的工作子行程: $names"
+    $busy += $(if ($script:AgentToolEnglish) { "Active child processes: $names" } else { "還有執行中的工作子行程: $names" })
 }
 if ($recent) {
     $ago = [int]((Get-Date) - $recent.LastWriteTime).TotalSeconds
-    $busy += "對話紀錄在 $ago 秒前剛有寫入: $($recent.Name)"
+    $busy += $(if ($script:AgentToolEnglish) { "Session log updated $ago seconds ago: $($recent.Name)" } else { "對話紀錄在 $ago 秒前剛有寫入: $($recent.Name)" })
 }
 
 if ($busy -and -not $Force) {
-    Write-Host "Codex 可能還在工作，先不關閉:`n - $($busy -join "`n - ")"
-    Write-Host '若確定要立刻強制關閉，請加上 -Force 參數，或等它做完再點一次。'
+    Write-Host $(if ($script:AgentToolEnglish) { "Codex may still be active; nothing was closed:`n - $($busy -join "`n - ")" } else { "Codex 可能還在工作，先不關閉:`n - $($busy -join "`n - ")" })
+    Write-Host $(if ($script:AgentToolEnglish) { 'Wait for the task to finish or use -Force only after reviewing the risks.' } else { '若確定要立刻強制關閉，請加上 -Force 參數，或等它做完再點一次。' })
     Start-Sleep 5
     return
 }
@@ -116,8 +117,8 @@ if ($Force) {
 foreach ($h in $hudProcs) { [void]$killIds.Add([int]$h.ProcessId) }
 
 if ($DryRun) {
-    Write-Host "目前判斷為閒置，可以安全關閉（試跑，未關閉）。"
-    Write-Host (" - Codex 主行程與引擎: {0} 個｜Codex 專屬 MCP/REPL 子行程: {1} 個｜HUD 啟動器: {2} 個（合計 {3} 個）" -f $rootIds.Count, $daemonKids.Count, $hudProcs.Count, $killIds.Count)
+    Write-Host $(if ($script:AgentToolEnglish) { "Dry run: no process has been terminated." } else { "目前判斷為閒置，可以安全關閉（試跑，未關閉）。" })
+    Write-Host $(if ($script:AgentToolEnglish) { (" - Codex app processes: {0} | Helper daemons: {1} | HUD launchers: {2} (total {3})" -f $rootIds.Count, $daemonKids.Count, $hudProcs.Count, $killIds.Count) } else { (" - Codex 主行程與引擎: {0} 個｜Codex 專屬 MCP/REPL 子行程: {1} 個｜HUD 啟動器: {2} 個（合計 {3} 個）" -f $rootIds.Count, $daemonKids.Count, $hudProcs.Count, $killIds.Count) })
     return
 }
 
@@ -132,5 +133,5 @@ if ($remaining) {
     $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host ("已安全且完整關閉 Codex（共清理 {0} 個行程，含 {1} 個 Codex 專屬 MCP/REPL 輔助行程）。" -f $killIds.Count, $daemonKids.Count)
+Write-Host $(if ($script:AgentToolEnglish) { ("Codex shutdown requested: {0} processes targeted, including {1} helper processes." -f $killIds.Count, $daemonKids.Count) } else { ("已嘗試關閉 Codex（共處理 {0} 個行程，含 {1} 個 Codex 專屬 MCP/REPL 輔助行程）。" -f $killIds.Count, $daemonKids.Count) })
 Start-Sleep 2

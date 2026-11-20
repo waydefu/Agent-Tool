@@ -8,20 +8,20 @@ const fs = require('fs');
 const { loadLocale, buildPreloadFragment } = require('./src/locale');
 
 const PORT = 9339;
+const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe');
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
 
 // 包成 IIFE，支援重複注入熱更新字典與規則（透過 engine 內的 window.__agObserver?.disconnect() 避免疊兩個 MutationObserver）。
-const engine = buildPreloadFragment(loadLocale('zh-TW'));
-const payloadZh = `(() => {\n${engine}\n})();`;
+const payloadZh = LANG === 'en' ? '' : `(() => {\n${buildPreloadFragment(loadLocale('zh-TW'))}\n})();`;
 
 // 快取命中小面板（agy-cache-watch）。檔案不存在就只做繁中。
 // 與本資料夾同層的 agy-cache-watch（本機在 ~/.gemini 下，repo 裡也是同層）。
 const CACHE_DIR = path.join(__dirname, '..', 'agy-cache-watch');
 const HUD = path.join(CACHE_DIR, 'hud.js');
 const hud = fs.existsSync(HUD) ? fs.readFileSync(HUD, 'utf8') : '';
-const payload = payloadZh + '\n' + hud;
+const payload = `window.__agentToolLang = ${JSON.stringify(LANG)};\n` + payloadZh + '\n' + hud;
 
 function evaluate(target, expression) {
   return new Promise((resolve) => {
@@ -35,7 +35,7 @@ function evaluate(target, expression) {
 function cacheData() {
   return new Promise((resolve) => {
     require('child_process').execFile('python', ['-I', path.join(CACHE_DIR, 'agy_cache.py'), '--json'],
-      { timeout: 20000, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
+      { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
 
@@ -96,7 +96,7 @@ function inject(target) {
       misses = 0;
       for (const t of list) {
         if (done.has(t.id) || !isAntigravityPage(t)) continue;
-        if (await inject(t)) { done.add(t.id); log(`injected: ${t.title} ${t.url}`); }
+        if (await inject(t)) { done.add(t.id); log('injected approved app target'); }
       }
       // 每 30 秒（第一次立即）更新快取命中面板。
       if (hud && tick++ % 15 === 0) {

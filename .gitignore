@@ -3,3 +3,4 @@ node_modules/
 *.bak*
 __pycache__/
 report.html
+report.en.html

@@ -3,7 +3,7 @@ const path = require('path');
 
 const LOCALES_DIR = path.join(__dirname, 'locales');
 const PATCHES_DIR = path.join(__dirname, 'patches');
-const DEFAULT_LOCALE = 'zh-CN';
+const DEFAULT_LOCALE = 'zh-TW';
 
 /**
  * List the locale codes shipped with this package.
@@ -13,7 +13,7 @@ const DEFAULT_LOCALE = 'zh-CN';
 function listLocales() {
     try {
         return fs.readdirSync(LOCALES_DIR)
-            .filter((name) => name.endsWith('.json') && !name.startsWith('locale.schema'))
+            .filter((name) => name.endsWith('.json') && !name.endsWith('.extra.json') && !name.startsWith('locale.schema'))
             .map((name) => name.replace(/\.json$/, ''))
             .sort();
     } catch {

@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+- 新增完整英文文件與 Issue 範本，以及雙語 HUD、英文 Windows 捷徑、CLI／HTML 英文版（`--lang en`）。
+- 修正 Codex 天數篩選、未知額度與預設模型／方案、隱私日誌、SQLite URI、Antigravity protobuf 截斷與額度重試。
+- 修正預設語言與字典合併流程，新增雙語及負面回歸測試。
+- 公開說明 Codex 40 筆對話掃描上限與 Windows 真機驗收未完成。
+
+
 - 建立繁體中文社群協作範本、貢獻指南、安全政策與 CI。
 - 強化 CDP 注入頁面與 WebSocket 端點比對，避免僅依視窗標題辨認。
 - 限縮 Codex 安全關閉腳本可認定為根行程的條件。

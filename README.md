@@ -1,5 +1,7 @@
 # Agent-Tool
 
+**語言：** [繁體中文](README.md) · [English](README.en.md)
+
 [![CI](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml/badge.svg)](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml)
 
 給 Windows 上的 Google Antigravity、ChatGPT 與 Codex 桌面使用者的社群工具，提供繁體中文介面、模型額度與 Token 用量觀察。
@@ -22,10 +24,13 @@
 
 ## 社群協作與安全
 
+英文使用者請參閱 [English README](README.en.md)、[English Security](SECURITY.en.md) 與 [English Contributing](CONTRIBUTING.en.md)。
+
 - [貢獻指南](CONTRIBUTING.md)：如何回報、測試並提交修正。
 - [安全政策](SECURITY.md)：CDP、本機資料與私下回報方式。
 - [變更紀錄](CHANGELOG.md)：尚未發布與已發布的變更。
 - [測試說明](docs/TESTING.md) 與 [發布檢查表](docs/RELEASE_CHECKLIST.md)：CI 與實機測試界線。
+- [程式審查報告](docs/REVIEW_2026-11-20.md)／[English review](docs/REVIEW_2026-11-20.en.md)：修正紀錄與殘餘風險。
 
 ## 問題回報
 
@@ -45,6 +50,8 @@
 - 啟動器會一直連著視窗，所以 App 重新載入後會自動再注入；App 關閉後啟動器自己結束。
 
 ### 使用
+英文介面與英文 HUD 可使用 `antigravity-zh-tw/launch-en.vbs`；此模式保留 Antigravity 原生英文，不注入繁中字典。亦可執行 `node launch-zh-tw.js --lang=en`。
+
 1. 建一個桌面捷徑，目標填：
    ```
    C:\Windows\System32\wscript.exe "<放置路徑>\antigravity-zh-tw\launch-zh-tw.vbs"
@@ -80,7 +87,7 @@ Gemini ◯87 ◯55 ｜ Claude/GPT ◯100 ◯100 ｜ Argon ◯100   快取 94.9%
      - 各模型：每個模型的命中率，底下列出其中子代理的部分。
      - 各對話：點一下展開，子代理縮排在上層對話底下。
   2. **上下文結構 (Context Breakdown)**：
-     - 直接解碼 `gen_metadata` 的 `1.9.10` 官方精確分類計數（非估算）：**訊息 (Chat Messages)**、**系統工具 (Tools)**、**MCP 工具 (Mcp Tools)**、**系統提示 (System Prompt)**、**Skills**、**外掛目錄 (Plugins)**、**使用者規則 (Rules)**、**子代理定義 (Subagents)**，以及**自上次更新以來**與**可用空間**。
+     - 解碼 `gen_metadata` 的 `1.9.10` 內部分類計數（非公開格式，版本相容性仍須驗證）：**訊息 (Chat Messages)**、**系統工具 (Tools)**、**MCP 工具 (Mcp Tools)**、**系統提示 (System Prompt)**、**Skills**、**外掛目錄 (Plugins)**、**使用者規則 (Rules)**、**子代理定義 (Subagents)**，以及**自上次更新以來**與**可用空間**。
      - 點開底部摺疊清單，可查看每一個工具（例如 `run_command (510 tok)`、`read_file (254 tok)`）與系統提示段落各自的精確 Token 數。
 - 快取資料由啟動器每 30 秒呼叫 `agy_cache.py --json` 推入。
 
@@ -90,6 +97,7 @@ python agy_cache.py              # 最近 7 天各模型命中率
 python agy_cache.py --watch 10   # 每 10 秒更新
 python agy_cache.py --html       # 產生 report.html 並開啟
 python agy_cache.py --selftest   # 自我檢查
+python agy_cache.py --lang en    # 英文終端機輸出，--html 可產生英文報表
 ```
 
 ### 資料來源（全部唯讀）
@@ -127,6 +135,8 @@ Codex / GPT ◯71 ◯70   快取 97.7%
      - 底部可點開展開清單：`▸ MCP 工具`、`▸ Skills`、`▸ 記憶檔案`、`▸ 自訂代理`。
 
 ### 使用
+英文 HUD 可使用 `codex-cache-watch/launch-codex-hud-en.vbs`，或執行 `node launch-codex-hud.js --lang=en`。原本的 `.vbs` 仍使用繁中。
+
 1. 桌面捷徑 `ChatGPT.lnk` 目標填：
    ```
    C:\Windows\System32\wscript.exe "<放置路徑>\codex-cache-watch\launch-codex-hud.vbs"
@@ -137,6 +147,7 @@ Codex / GPT ◯71 ◯70   快取 97.7%
    python codex_cache.py              # 顯示額度、各模型與子代理命中率、最新對話上下文結構
    python codex_cache.py --html       # 產生 report.html 並開啟
    python codex_cache.py --selftest   # 自我檢查
+python codex_cache.py --lang en  # 英文終端機輸出，--html 可產生英文報表
    ```
 
 ### 資料來源（全部唯讀）
@@ -148,5 +159,6 @@ Codex / GPT ◯71 ◯70   快取 97.7%
 
 - 有 `token_usage_record` 的對話：快取讀取、未命中輸入、輸出量使用真實紀錄；但 **Codex 上下文分類仍有按字元換算的估算部分**。
 - 若只有 SQLite 歷史資料且找不到 rollout：每次呼叫與命中率均為**推估**，HUD 會標明，且不混入模型與全域實測命中率。
+- Codex 對話統計目前只掃描指定期間內**最近更新的最多 40 筆對話**，不代表完整帳號歷史用量；若要完整分析大量對話，仍須擴充掃描策略。
 - 自動壓縮緩衝區、延遲載入項目及某些 Context 欄位為估算或預設值，非官方保證。請勿用於精密計費。
 - 桌面 App 注入方式依賴非公開內部實作；除錯埠開啟期間請避免在不信任的電腦使用。
