@@ -57,12 +57,15 @@ class ReviewRegressions(unittest.TestCase):
             "secondary": {"used_percent": 30, "resets_at": 9000},
         }
         groups = cd.format_quota(past_rl, now=2000)
-        b5, bw = groups[0]["buckets"]
+        self.assertEqual(groups[0]["name"], "週額度 / 五小額度")
+        bw, b5 = groups[0]["buckets"]
+        self.assertEqual(bw["window"], "week")
+        self.assertEqual(bw["remaining"], 70)
+        self.assertEqual(bw["used"], 30.0)
+        self.assertEqual(b5["window"], "5h")
         self.assertEqual(b5["remaining"], 100)
         self.assertEqual(b5["used"], 0.0)
         self.assertIn("已重置", b5["reset"])
-        self.assertEqual(bw["remaining"], 70)
-        self.assertEqual(bw["used"], 30.0)
 
         # Event ISO timestamp should beat touched file mtime
         ts_oct = cd.parse_event_ts("2026-10-11T18:31:55Z", None, fallback=9999999999.0)

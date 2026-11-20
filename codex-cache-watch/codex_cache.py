@@ -516,7 +516,7 @@ def format_quota(rl, now=None):
         return []
     now_ts = time.time() if now is None else float(now)
     buckets = []
-    for key, label, win in (("primary", "5h", "五小時"), ("secondary", "week", "每週")):
+    for key, label, win in (("secondary", "week", "每週"), ("primary", "5h", "五小時")):
         b = rl.get(key)
         if not isinstance(b, dict):
             continue
@@ -543,7 +543,7 @@ def format_quota(rl, now=None):
             "used": round(used, 1),
             "reset": rst_str,
         })
-    return [{"name": "Codex / GPT", "plan": rl.get("plan_type") or "unknown", "buckets": buckets}]
+    return [{"name": "週額度 / 五小額度", "plan": rl.get("plan_type") or "unknown", "buckets": buckets}]
 
 
 def build_json(days=30):
