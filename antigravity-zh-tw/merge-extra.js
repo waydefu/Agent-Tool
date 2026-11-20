@@ -15,7 +15,15 @@ loc.valueMaps.twPermTarget = { ...(extra.permTargets || {}) };
 loc.valueMaps.preset = { ...(loc.valueMaps.preset || {}), ...extra.presetExtra };
 const ids = new Set(extra.patterns.map((p) => p.id));
 loc.patterns = [...extra.patterns, ...(loc.patterns || []).filter((p) => !ids.has(p.id))];
-fs.writeFileSync(file, JSON.stringify(loc, null, 2) + '\n', 'utf8');
-
-require('./src/locale').loadLocale('zh-TW'); // 驗證格式，失敗會丟錯
+// First validate the in-memory result: never overwrite the working dictionary with invalid JSON.
+require('./src/locale').validateLocale('zh-TW', loc);
+const temp = file + '.tmp-' + process.pid;
+try {
+  fs.writeFileSync(temp, JSON.stringify(loc, null, 2) + '\n', 'utf8');
+  fs.renameSync(temp, file);
+} catch (err) {
+  try { fs.unlinkSync(temp); } catch {}
+  throw err;
+}
+require('./src/locale').loadLocale('zh-TW'); // Read back and validate the committed result
 console.log(`zh-TW: ${Object.keys(loc.text).length} 條字串，${loc.patterns.length} 條規則，驗證通過`);

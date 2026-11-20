@@ -101,7 +101,7 @@
 
     let h = `<div class="ctx-head"><span>${t('已使用', 'Used')} ${b.used_pct}%</span><small>${wan(b.used)} / ${wan(lim)}</small></div>`;
     h += `<div class="bar" style="height:7px">${barSegs}</div>`;
-    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">${t('資料直接解碼自 Antigravity 本機 gen_metadata (Field 1.9.10) 官方精確計數。', 'Decoded from Antigravity local gen_metadata (Field 1.9.10); internal format is undocumented and may change.')}</div>`;
+    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">${t('資料解碼自 Antigravity 本機 gen_metadata (Field 1.9.10)，內部格式未公開，更新後可能變更。', 'Decoded from Antigravity local gen_metadata (Field 1.9.10); internal format is undocumented and may change.')}</div>`;
 
     h += b.cats.map((x) => {
       const hasList = b.lists && b.lists[x.name];

@@ -35,7 +35,7 @@ function evaluate(target, expression) {
 function cacheData() {
   return new Promise((resolve) => {
     require('child_process').execFile('python', ['-I', path.join(CACHE_DIR, 'agy_cache.py'), '--json'],
-      { timeout: 20000, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
+      { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
 

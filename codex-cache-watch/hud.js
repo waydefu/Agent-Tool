@@ -149,7 +149,7 @@
     q.innerHTML = groups.map((g) => {
       return `<span>${esc(g.name)}</span>` + (g.buckets || []).map((b) => {
         const p = b.remaining ?? 0;
-        return ring(p, `${g.name} ${b.window === '5h' ? t('五小時', '5-hour') : b.window === 'week' ? t('每週', 'weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%), ${b.reset}`);
+        return ring(p, `${g.name} ${b.window === '5h' ? t('五小時', '5-hour') : b.window === 'week' ? t('每週', 'weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%), ${LANG === 'en' ? String(b.reset).replace(' 重置', ' reset') : b.reset}`);
       }).join('');
     }).join('<span class="sep">｜</span>');
   }
@@ -205,7 +205,7 @@
     if (!r) return;
     renderQuota();
     const d = data, pill = r.querySelector('.pill b'), box = r.querySelector('.box');
-    if (!d || !d.models || !d.models.length) {
+    if (!d || ((!d.models || !d.models.length) && (!d.recent || !d.recent.length))) {
       pill.textContent = t('無資料', 'No data');
       box.innerHTML = `<span class="muted">${t('目前沒有對話用量紀錄。', 'No conversation usage records available.')}</span>`;
       return;

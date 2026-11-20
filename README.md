@@ -86,7 +86,7 @@ Gemini ◯87 ◯55 ｜ Claude/GPT ◯100 ◯100 ｜ Argon ◯100   快取 94.9%
      - 各模型：每個模型的命中率，底下列出其中子代理的部分。
      - 各對話：點一下展開，子代理縮排在上層對話底下。
   2. **上下文結構 (Context Breakdown)**：
-     - 直接解碼 `gen_metadata` 的 `1.9.10` 官方精確分類計數（非估算）：**訊息 (Chat Messages)**、**系統工具 (Tools)**、**MCP 工具 (Mcp Tools)**、**系統提示 (System Prompt)**、**Skills**、**外掛目錄 (Plugins)**、**使用者規則 (Rules)**、**子代理定義 (Subagents)**，以及**自上次更新以來**與**可用空間**。
+     - 解碼 `gen_metadata` 的 `1.9.10` 內部分類計數（非公開格式，版本相容性仍須驗證）：**訊息 (Chat Messages)**、**系統工具 (Tools)**、**MCP 工具 (Mcp Tools)**、**系統提示 (System Prompt)**、**Skills**、**外掛目錄 (Plugins)**、**使用者規則 (Rules)**、**子代理定義 (Subagents)**，以及**自上次更新以來**與**可用空間**。
      - 點開底部摺疊清單，可查看每一個工具（例如 `run_command (510 tok)`、`read_file (254 tok)`）與系統提示段落各自的精確 Token 數。
 - 快取資料由啟動器每 30 秒呼叫 `agy_cache.py --json` 推入。
 

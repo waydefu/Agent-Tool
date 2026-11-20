@@ -79,7 +79,7 @@ def default_host_lists():
     return skills, mems
 
 
-def parse_rollout(path, default_model="gpt-6"):
+def parse_rollout(path, default_model="unknown"):
     """解析單一 rollout-*.jsonl，回傳 (calls, breakdown, rate_limits, rate_ts)。
     calls: [(idx, (model, uncached, cache_read, output, total_input))]
     """
@@ -98,7 +98,7 @@ def parse_rollout(path, default_model="gpt-6"):
     skills_list, mem_list, agents_list = [], [], []
     ctx_window = 475000
     calls = []
-    cur_model = default_model or "gpt-6"
+    cur_model = default_model or "unknown"
     last_input = 0
     prev_turn_end_input = 0
     cur_turn_id = None
@@ -316,7 +316,7 @@ def estimate_from_sqlite(cid, model, tokens_used, hist_con, host_skills, host_me
         else:
             cr = round(inp * min(0.96, 0.84 + 0.11 * (i / n_calls)))
         un = max(0, inp - cr)
-        calls.append((i + 1, (model or "gpt-6", un, cr, out, inp)))
+        calls.append((i + 1, (model or "unknown", un, cr, out, inp)))
 
     ctx_window = 475000
     last_input = min(ctx_window - 20000, max(base_prompt + round(item_bytes / 4.2), calls[-1][1][4]))
@@ -497,7 +497,14 @@ def format_quota(rl):
         b = rl.get(key)
         if not isinstance(b, dict):
             continue
-        used = float(b.get("used_percent") or 0.0)
+        if b.get("used_percent") is None:
+            continue  # Unknown is not the same as 0% used.
+        try:
+            used = float(b["used_percent"])
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= used <= 100):
+            continue
         rem = max(0, min(100, round(100.0 - used)))
         rst = b.get("resets_at")
         rst_str = time.strftime("%m/%d %H:%M", time.localtime(rst)) + " 重置" if rst else ""
@@ -508,7 +515,7 @@ def format_quota(rl):
             "used": round(used, 1),
             "reset": rst_str,
         })
-    return [{"name": "Codex / GPT", "plan": rl.get("plan_type") or "plus", "buckets": buckets}]
+    return [{"name": "Codex / GPT", "plan": rl.get("plan_type") or "unknown", "buckets": buckets}]
 
 
 def build_json(days=30):

@@ -75,7 +75,7 @@ function evaluate(target, expression) {
 function cacheData() {
   return new Promise((resolve) => {
     require('child_process').execFile('python', ['-I', PY, '--json'],
-      { timeout: 20000, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
+      { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
 
@@ -139,7 +139,7 @@ function isMainPage(t) {
       }
     }
     const exe = resolveExe();
-    log(`starting ChatGPT/Codex with debug port ${PORT}: ${exe}`);
+    log(`starting ChatGPT/Codex with local debug port ${PORT}`);
     try {
       const child = spawn(exe, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore', windowsHide: false });
       child.on('error', (err) => log(`spawn error: ${err.message}`));
