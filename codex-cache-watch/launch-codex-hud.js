@@ -132,7 +132,7 @@ function isMainPage(t) {
         ws.username || ws.password || !/^\/devtools\/page\/[A-Za-z0-9-]+$/.test(ws.pathname)) return false;
     const u = new URL(t.url || '');
     if (u.pathname.includes('avatar-overlay') || u.search.includes('avatar-overlay')) return false;
-    if (u.protocol === 'app:') return !u.hostname || ['chatgpt', 'codex'].includes(u.hostname);
+    if (u.protocol === 'app:') return !u.hostname || ['chatgpt', 'codex', '-'].includes(u.hostname);
     if (u.protocol === 'file:') return /\/(?:OpenAI\.Codex_[^/]+|OpenAI\/Codex|ChatGPT)\//i.test(u.pathname);
     if ((u.protocol === 'http:' || u.protocol === 'https:') && ['localhost', '127.0.0.1'].includes(u.hostname)) return true;
     return u.protocol === 'https:' && (u.hostname === 'chatgpt.com' || u.hostname.endsWith('.chatgpt.com'));
