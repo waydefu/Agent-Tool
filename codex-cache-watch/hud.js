@@ -149,7 +149,7 @@
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? '子代理 ' + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c, showCtxLink = false) => `<div class="muted">上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
+  const detail = (c, showCtxLink = false) => `<div class="muted">${c.estimated ? '［推估］' : ''}上下文 ${wan(c.context)} token・${c.calls.length} 次呼叫・命中 0% 有 ${c.zero} 次・快取讀取 ${wan(c.cache)}・未命中 ${wan(c.uncached)}</div><div class="spark">` +
     c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)}｜命中 ${hit}%｜快取 ${wan(cr)}・未命中 ${wan(u)}・輸出 ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
     (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ 查看此對話的上下文結構明細（已使用 ${c.breakdown.used_pct}%・${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)}）</div>` : '');
 
@@ -165,7 +165,7 @@
     let h = `<div class="ctx-head"><span>已使用 ${b.used_pct}%</span><small>${wan(b.used)} / ${wan(lim)}</small></div>`;
     h += `<div class="bar" style="height:7px">${barSegs}</div>`;
     h += `<div class="thresh"><span>自動壓縮門檻</span><span>${wan(b.threshold || lim)} ▾</span></div>`;
-    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">數值越低，耗用的使用量限制越少。Codex 會更早摘要較舊的訊息。${b.exact ? '' : '（依本機資料庫推算）'}</div>`;
+    h += `<div class="muted" style="margin-bottom:8px;font-size:11.5px">數值越低，耗用的使用量限制越少。Codex 會更早摘要較舊的訊息。${b.source === 'rollout' ? '（總輸入來自紀錄；分類依內容估算）' : '（歷史資料推估，並非實際 Token 用量）'}</div>`;
 
     h += b.cats.map((x) => {
       const cls = dottedSet.has(x.name) ? ' class="dotted"' : '';
