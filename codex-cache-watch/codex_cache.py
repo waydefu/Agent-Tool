@@ -682,7 +682,7 @@ def summary_en(days):
     for group in d["quota"]:
         buckets = " | ".join(
             "%s remaining %s%% (%s)" %
-            ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"], b["reset"])
+            ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"], b["reset"].replace(" 重置", " reset"))
             for b in group["buckets"]
         )
         print("== %s quota (%s): %s" % (group["name"], group["plan"], buckets))
