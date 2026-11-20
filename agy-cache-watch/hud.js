@@ -189,6 +189,7 @@
     `<circle cx="10.5" cy="10.5" r="8" fill="none" stroke="${qcolor(p)}" stroke-width="2" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 10.5 10.5)"/>` +
     `<text x="10.5" y="13.2" text-anchor="middle" font-size="${p >= 100 ? 6.5 : 8}" fill="#e6e6e6">${p}</text></svg>`; };
   const when = (timestamp) => { const d = new Date(timestamp); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${t('重置', 'reset')}`; };
+  let quotaRetry = null;
   async function quota() {
     const r = mount(); if (!r) return; const q = r.querySelector('.quota');
     try {
@@ -205,9 +206,12 @@
         }).join('');
       }).join('<span class="sep">｜</span>');
       q.title = '';
+      if (quotaRetry != null) { clearTimeout(quotaRetry); quotaRetry = null; }
     } catch (e) {
       q.textContent = t('額度讀取中…', 'Loading quota…'); q.title = String(e && e.message || e);
-      if (window.__agyHudGen === GEN) setTimeout(quota, 3000);
+      if (window.__agyHudGen === GEN && quotaRetry == null) {
+        quotaRetry = setTimeout(() => { quotaRetry = null; quota(); }, 3000);
+      }
     }
   }
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', quota, { once: true }); else quota();

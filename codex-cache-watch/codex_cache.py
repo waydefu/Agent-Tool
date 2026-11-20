@@ -20,6 +20,7 @@
 """
 import argparse, glob, json, os, re, sqlite3, sys, time
 from collections import defaultdict
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HOME = os.path.expanduser("~")
@@ -376,11 +377,11 @@ def collect(days=30):
     if not os.path.exists(STATE_DB):
         return per_model, convs, None
 
-    con = sqlite3.connect("file:%s?mode=ro" % STATE_DB.replace("\\", "/"), uri=True, timeout=1.0)
+    con = sqlite3.connect(Path(STATE_DB).resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)
     hist_con = None
     if os.path.exists(HIST_DB):
         try:
-            hist_con = sqlite3.connect("file:%s?mode=ro" % HIST_DB.replace("\\", "/"), uri=True, timeout=1.0)
+            hist_con = sqlite3.connect(Path(HIST_DB).resolve().as_uri() + "?mode=ro", uri=True, timeout=1.0)
         except sqlite3.Error:
             hist_con = None
 

@@ -16,6 +16,7 @@
 """
 import argparse, glob, os, sqlite3, sys, time
 from collections import defaultdict
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 HOME = os.path.expanduser("~")
@@ -162,7 +163,7 @@ def decode_breakdown(blob, prev_total=0):
 
 
 def read_db(path, with_breakdown=False):
-    con = sqlite3.connect("file:%s?mode=ro" % path.replace("\\", "/"), uri=True, timeout=0.5)
+    con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=0.5)
     try:
         rows = con.execute("select idx, data from gen_metadata order by idx").fetchall()
     finally:
@@ -246,7 +247,7 @@ def titles():
         if not os.path.exists(p):
             continue
         try:
-            con = sqlite3.connect("file:%s?mode=ro" % p.replace("\\", "/"), uri=True, timeout=0.5)
+            con = sqlite3.connect(Path(p).resolve().as_uri() + "?mode=ro", uri=True, timeout=0.5)
             out.update({r[0]: r[1:] for r in con.execute("select conversation_id, coalesce(nullif(title, ''), preview), parent_conversation_id, agent_name from conversation_summaries")})
             con.close()
         except sqlite3.Error:
