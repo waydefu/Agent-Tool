@@ -177,7 +177,7 @@
       (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">${t('其中子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0% ${x.zero}</span><em>${x.hit}%</em></div>`).join('')).join('');
     h += `<h4>${t('各對話（點一下展開，縮排＝子代理）', 'Conversations (select to expand; indented = subagents)')}</h4>` + order.map((c) => `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
       (expanded.has(c.id) ? detail(c, true) : '')).join('');
-    h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
+    h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
     box.innerHTML = h;
   }
 
@@ -188,7 +188,7 @@
     `<circle cx="10.5" cy="10.5" r="8" fill="none" stroke="#3a3a42" stroke-width="2"/>` +
     `<circle cx="10.5" cy="10.5" r="8" fill="none" stroke="${qcolor(p)}" stroke-width="2" stroke-dasharray="${(c * p / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 10.5 10.5)"/>` +
     `<text x="10.5" y="13.2" text-anchor="middle" font-size="${p >= 100 ? 6.5 : 8}" fill="#e6e6e6">${p}</text></svg>`; };
-  const when = (t) => { const d = new Date(t); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${t('重置', 'reset')}`; };
+  const when = (timestamp) => { const d = new Date(timestamp); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${t('重置', 'reset')}`; };
   async function quota() {
     const r = mount(); if (!r) return; const q = r.querySelector('.quota');
     try {
@@ -197,9 +197,10 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const groups = (await res.json()).response?.groups || [];
       q.innerHTML = groups.map((g) => {
-        const name = GROUP[g.displayName] || g.displayName.replace(/^Gemini 4 /, '');
-        return `<span>${esc(name)}</span>` + (g.buckets || []).map((b) => {
-          const p = Math.round((b.remainingFraction ?? 0) * 100);
+        const displayName = String(g.displayName || 'Models');
+        const name = GROUP[displayName] || displayName.replace(/^Gemini 4 /, '');
+        return `<span>${esc(name)}</span>` + (g.buckets || []).filter((b) => b.remainingFraction != null && Number.isFinite(Number(b.remainingFraction))).map((b) => {
+          const p = Math.max(0, Math.min(100, Math.round(Number(b.remainingFraction) * 100)));
           return ring(p, `${name} ${b.window === '5h' ? t('五小時', '5-hour') : t('每週', 'weekly')} ${t('限額剩餘', 'quota remaining')} ${p}% · ${when(b.resetTime)}`);
         }).join('');
       }).join('<span class="sep">｜</span>');
