@@ -6,13 +6,14 @@ const path = require('path');
 const fs = require('fs');
 
 const PORT = 9340;
+const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
 const LOG = path.join(__dirname, 'launch-codex-hud.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
 
 const HUD = path.join(__dirname, 'hud.js');
 const PY = path.join(__dirname, 'codex_cache.py');
-const hud = fs.existsSync(HUD) ? fs.readFileSync(HUD, 'utf8') : '';
+const hud = `window.__agentToolLang = ${JSON.stringify(LANG)};\n` + (fs.existsSync(HUD) ? fs.readFileSync(HUD, 'utf8') : '');
 
 function resolveExe() {
   // Windows Store AppExecutionAlias (chatgpt-desktop.exe) 是特殊的 reparse point：
