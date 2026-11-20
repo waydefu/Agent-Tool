@@ -33,6 +33,22 @@ class ReviewRegressions(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     list(ag.fields(wire))
 
+    def test_sqlite_uri_handles_hash_in_filename(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db = Path(temp) / "conversation #1.db"
+            with contextlib.closing(sqlite3.connect(db)) as con:
+                con.execute("CREATE TABLE gen_metadata (idx INTEGER, data BLOB)")
+                con.commit()
+            self.assertEqual(ag.read_db(str(db)), [])
+
+    def test_unknown_quota_must_not_be_misreported_as_full(self):
+        groups = cd.format_quota({"primary": {}, "plan_type": None})
+        self.assertEqual(groups[0]["plan"], "unknown")
+        self.assertEqual(groups[0]["buckets"], [])
+        real = cd.format_quota({"primary": {"used_percent": 30}, "plan_type": "pro"})
+        self.assertEqual(real[0]["buckets"][0]["remaining"], 70)
+        self.assertEqual(real[0]["plan"], "pro")
+
     def test_codex_days_filter_never_expands_to_older_threads(self):
         with tempfile.TemporaryDirectory() as temp:
             db = Path(temp) / "state_5.sqlite"
