@@ -16,3 +16,7 @@ If GitHub [Private vulnerability reporting](https://github.com/waydefu/Agent-Too
 ## Support status
 
 CI verifies syntax and selected behaviors with synthetic fixtures. It does **not** prove compatibility with every Windows build, installed app version or user environment. A release should only be marked stable once the [manual verification checklist](docs/TESTING.en.md) has been completed.
+
+## Debug-port owner verification
+
+Before injecting a page, launchers use Windows `Get-NetTCPConnection` to identify the listening PID and `Win32_Process.ExecutablePath` to check the expected Antigravity or ChatGPT/Codex installation path. If ownership cannot be verified, another process owns the port, or the port binds outside loopback, injection is refused. **This does not add CDP authentication.** Real Windows desktop validation remains required. Nonstandard installation locations may be conservatively rejected; report the installation path for review rather than disabling this check.
