@@ -49,6 +49,26 @@ class ReviewRegressions(unittest.TestCase):
         self.assertEqual(real[0]["buckets"][0]["remaining"], 70)
         self.assertEqual(real[0]["plan"], "pro")
 
+    def test_expired_quota_window_resets_and_event_timestamp_beats_touched_mtime(self):
+        # Past resets_at should be reported as already reset (100% remaining, 0% used)
+        past_rl = {
+            "plan_type": "plus",
+            "primary": {"used_percent": 85, "resets_at": 1000},
+            "secondary": {"used_percent": 30, "resets_at": 9000},
+        }
+        groups = cd.format_quota(past_rl, now=2000)
+        b5, bw = groups[0]["buckets"]
+        self.assertEqual(b5["remaining"], 100)
+        self.assertEqual(b5["used"], 0.0)
+        self.assertIn("已重置", b5["reset"])
+        self.assertEqual(bw["remaining"], 70)
+        self.assertEqual(bw["used"], 30.0)
+
+        # Event ISO timestamp should beat touched file mtime
+        ts_oct = cd.parse_event_ts("2026-10-11T18:31:55Z", None, fallback=9999999999.0)
+        ts_nov = cd.parse_event_ts("2026-11-18T12:53:35Z", None, fallback=100.0)
+        self.assertGreater(ts_nov, ts_oct)
+
     def test_codex_days_filter_never_expands_to_older_threads(self):
         with tempfile.TemporaryDirectory() as temp:
             db = Path(temp) / "state_5.sqlite"

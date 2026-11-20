@@ -113,3 +113,71 @@ test('Antigravity English quota tooltip renders a valid reset and ignores missin
   assert.equal((hud.quota.innerHTML.match(/<svg/g) || []).length, 1,
     'an absent remainingFraction must not appear as exhausted quota');
 });
+
+test('Codex HUD reads live in-app React Fiber quota when available', () => {
+  const file = 'codex-cache-watch/hud.js';
+  const box = { innerHTML: '', onclick: null, onchange: null };
+  const pill = { textContent: '', style: {}, title: '', onclick: null };
+  const pillCount = { textContent: '', style: {} };
+  const quota = { innerHTML: '', textContent: '', title: '' };
+  const root = {
+    dataset: {}, id: '', innerHTML: '',
+    classList: { toggle() {} },
+    querySelector(selector) {
+      if (selector === '.box') return box;
+      if (selector === '.pill') return pill;
+      if (selector === '.pill b') return pillCount;
+      if (selector === '.quota') return quota;
+      throw new Error('unexpected selector: ' + selector);
+    },
+  };
+  const liveBtn = {
+    getAttribute: (k) => k === 'aria-description' ? '5 小時用量：剩餘 9%。每週用量：剩餘 86%' : null,
+    __reactFiber$mock: {
+      return: {
+        memoizedState: {
+          memoizedState: {
+            usage: {
+              plan_type: 'plus',
+              rate_limit: {
+                primary_window: { used_percent: 91, reset_at: 1795170887 },
+                secondary_window: { used_percent: 14, reset_at: 1795757687 },
+              },
+            },
+            data: {
+              menu: {
+                rows: [
+                  { hover: { text: '1 小時 7 分鐘後重設' } },
+                  { hover: { text: '6 天 20 小時後重設' } },
+                ],
+              },
+            },
+          },
+          next: null,
+        },
+      },
+    },
+  };
+  const document = {
+    readyState: 'loading', title: '', body: { contains: () => true, appendChild() {} },
+    head: { appendChild() {} },
+    createElement: (tag) => tag === 'div' ? root : { textContent: '', id: '' },
+    getElementById: () => null,
+    querySelector: (sel) => sel.includes('aria-description') ? liveBtn : null,
+  };
+  const window = { __agentToolLang: 'zh-TW' };
+  const context = {
+    document, window, URL, Date, Intl, Set, String, Number, Math, Object, Array,
+    location: { href: 'app://-/index.html', pathname: '/index.html', search: '' },
+    setInterval: () => 0, clearInterval: () => {},
+    setTimeout: () => 0, addEventListener: () => {},
+  };
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), context, { filename: file, timeout: 1000 });
+  window.__codexCacheHud({
+    hit: 50, cache: 50, uncached: 50, output: 10, updated: '12:00:00',
+    quota: [{ name: 'Codex', plan: 'plus', buckets: [{ label: '五小時', window: '5h', remaining: 84, used: 16, reset: 'stale' }] }],
+    models: [], recent: [],
+  });
+  assert.match(quota.innerHTML, /五小時 限額剩餘 9% \(已用 91%\)/);
+  assert.match(quota.innerHTML, /每週 限額剩餘 86% \(已用 14%\)/);
+});

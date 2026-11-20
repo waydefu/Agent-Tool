@@ -124,7 +124,7 @@ function isMainPage(t) {
     const ws = new URL(t.webSocketDebuggerUrl);
     if (ws.protocol !== 'ws:' || !['127.0.0.1', 'localhost'].includes(ws.hostname) || ws.port !== String(PORT)) return false;
     const u = new URL(t.url || '');
-    if (u.pathname.includes('avatar-overlay')) return false;
+    if (u.pathname.includes('avatar-overlay') || u.search.includes('avatar-overlay')) return false;
     if (['app:', 'file:', 'vscode-file:', 'vscode-webview:'].includes(u.protocol)) return true;
     if ((u.protocol === 'http:' || u.protocol === 'https:') && ['localhost', '127.0.0.1'].includes(u.hostname)) return true;
     return u.protocol === 'https:' && (u.hostname === 'chatgpt.com' || u.hostname.endsWith('.chatgpt.com'));
