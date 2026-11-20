@@ -4,8 +4,10 @@
 const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createOwnerGuard } = require('../shared/cdp-owner');
 
 const PORT = 9340;
+const ensureOwner = createOwnerGuard('codex', PORT);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 process.env.AGENT_TOOL_LANG = LANG; // Pass language to the PowerShell restart helper.
 const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
@@ -99,7 +101,11 @@ function cacheData() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function targets() {
   const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
-  return res.json();
+  if (!res.ok) { const e = new Error('Unrecognized CDP HTTP endpoint'); e.code = 'UNTRUSTED_CDP'; throw e; }
+  ensureOwner();
+  const list = await res.json();
+  if (!Array.isArray(list)) { const e = new Error('Invalid CDP target list'); e.code = 'UNTRUSTED_CDP'; throw e; }
+  return list;
 }
 
 const done = new Set();
@@ -122,10 +128,12 @@ function isMainPage(t) {
   if (t.type !== 'page' || !t.webSocketDebuggerUrl) return false;
   try {
     const ws = new URL(t.webSocketDebuggerUrl);
-    if (ws.protocol !== 'ws:' || !['127.0.0.1', 'localhost'].includes(ws.hostname) || ws.port !== String(PORT)) return false;
+    if (ws.protocol !== 'ws:' || !['127.0.0.1', 'localhost'].includes(ws.hostname) || ws.port !== String(PORT) ||
+        ws.username || ws.password || !/^\/devtools\/page\/[A-Za-z0-9-]+$/.test(ws.pathname)) return false;
     const u = new URL(t.url || '');
     if (u.pathname.includes('avatar-overlay') || u.search.includes('avatar-overlay')) return false;
-    if (['app:', 'file:', 'vscode-file:', 'vscode-webview:'].includes(u.protocol)) return true;
+    if (u.protocol === 'app:') return !u.hostname || ['chatgpt', 'codex'].includes(u.hostname);
+    if (u.protocol === 'file:') return /\/(?:OpenAI\.Codex_[^/]+|OpenAI\/Codex|ChatGPT)\//i.test(u.pathname);
     if ((u.protocol === 'http:' || u.protocol === 'https:') && ['localhost', '127.0.0.1'].includes(u.hostname)) return true;
     return u.protocol === 'https:' && (u.hostname === 'chatgpt.com' || u.hostname.endsWith('.chatgpt.com'));
   } catch { return false; }
@@ -133,7 +141,9 @@ function isMainPage(t) {
 
 (async () => {
   let up = false;
-  try { await targets(); up = true; } catch {}
+  try { await targets(); up = true; } catch (e) {
+    if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
+  }
   if (!up) {
     if (isChatGptRunning()) {
       log('ChatGPT is already running without debug port 9340');
@@ -183,6 +193,7 @@ function isMainPage(t) {
       let newlyInjected = false;
       for (const t of list) {
         if (!isMainPage(t) || done.has(t.id)) continue;
+        ensureOwner(true);
         if (await inject(t)) {
           done.add(t.id);
           newlyInjected = true;
@@ -192,6 +203,7 @@ function isMainPage(t) {
       if (hud && (newlyInjected || tick++ % 15 === 0)) {
         const json = await cacheData();
         if (json) {
+          ensureOwner(true);
           for (const t of list) {
             if (done.has(t.id) && isMainPage(t)) {
               await evaluate(t, `window.__codexCacheHud && window.__codexCacheHud(${json})`);
@@ -199,7 +211,8 @@ function isMainPage(t) {
           }
         }
       }
-    } catch {
+    } catch (e) {
+      if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
       misses += 1;
       if ((seen && misses > 10) || (!seen && misses > 90)) {
         log('exit');
