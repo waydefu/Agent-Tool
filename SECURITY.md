@@ -17,3 +17,7 @@
 ## 支援與驗證界線
 
 安全更新以 `main` 中已合併的修正為準；Release 需另行公告。自動化 CI 只能檢查部分程式邏輯，無法替代 Windows 真機對桌面版本和安全行為的驗證。
+
+## 除錯埠擁有者驗證
+
+啟動器會透過 Windows `Get-NetTCPConnection` 查詢監聽埠的 PID，並核對 `Win32_Process.ExecutablePath` 與預期的 Antigravity 或 ChatGPT/Codex 安裝路徑。若無法識別、埠由其他程式佔用或綁定非本機位址，會拒絕注入，避免誤連接其他應用程式。此措施**不會替 CDP 增加密碼或驗證**；相容性與安全性仍須進行 Windows 真機驗收。非預設安裝路徑可能被保守拒絕，請先回報並核對實際路徑，不要直接放寬白名單。

@@ -47,3 +47,17 @@ test('Codex denies spoofed host, title, avatar-overlay and remote debug endpoint
   assert.equal(cd.isMainPage(tab('https://chatgpt.com/', 9340, 'evil.invalid')), false);
   assert.equal(cd.isMainPage(tab('http://localhost:5000/', 9340)), true);
 });
+
+
+test('unrelated files, webviews, and malformed CDP WebSocket paths are rejected', () => {
+  assert.equal(ag.isAntigravityPage(tab('file:///C:/Users/test/Downloads/unrelated.html', 9339)), false);
+  assert.equal(ag.isAntigravityPage(tab('vscode-webview://untrusted/content', 9339)), false);
+  assert.equal(ag.isAntigravityPage(tab('app://unrelated/index.html', 9339)), false);
+  assert.equal(ag.isAntigravityPage(tab('file:///C:/Users/test/AppData/Local/Programs/antigravity/index.html', 9339)), true);
+  assert.equal(cd.isMainPage(tab('file:///C:/Users/test/Downloads/unrelated.html', 9340)), false);
+  assert.equal(cd.isMainPage(tab('vscode-file://other/workspace', 9340)), false);
+  assert.equal(cd.isMainPage(tab('app://unrelated/index.html', 9340)), false);
+  assert.equal(cd.isMainPage(tab('file:///C:/Program%20Files/WindowsApps/OpenAI.Codex_2.0.0_x64__id/app/index.html', 9340)), true);
+  assert.equal(ag.isAntigravityPage({...tab('app://antigravity/', 9339), webSocketDebuggerUrl: 'ws://127.0.0.1:9339/untrusted'}), false);
+  assert.equal(cd.isMainPage({...tab('https://chatgpt.com/', 9340), webSocketDebuggerUrl: 'ws://127.0.0.1:9340/other'}), false);
+});

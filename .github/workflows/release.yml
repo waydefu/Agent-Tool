@@ -23,6 +23,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+      - name: 驗證發布標籤格式
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -cnotmatch '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$') {
+            throw 'Release tag must follow vMAJOR.MINOR.PATCH[-prerelease]'
+          }
       - name: 確認發布標籤位於 main 歷史
         shell: pwsh
         run: |
@@ -50,14 +57,21 @@ jobs:
       - name: 封裝原始碼 ZIP（非執行檔、非安裝程式）
         shell: pwsh
         run: |
-          git archive --format=zip --output="Agent-Tool-${{ github.ref_name }}-source.zip" HEAD
+          $tag = $env:GITHUB_REF_NAME
+          $archive = "Agent-Tool-$tag-source.zip"
+          $checksum = "Agent-Tool-$tag-SHA256.txt"
+          git archive --format=zip "--output=$archive" HEAD
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash "Agent-Tool-${{ github.ref_name }}-source.zip" -Algorithm SHA256 |
-            ForEach-Object { "$($_.Hash.ToLower())  Agent-Tool-${{ github.ref_name }}-source.zip" } |
-            Set-Content -Encoding utf8 "Agent-Tool-${{ github.ref_name }}-SHA256.txt"
+          Get-FileHash -LiteralPath $archive -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $archive" } |
+            Set-Content -Encoding utf8 -LiteralPath $checksum
       - name: 建立預發布版本（待 Windows 真機驗收後才能標為 Stable）
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" "Agent-Tool-${{ github.ref_name }}-source.zip" "Agent-Tool-${{ github.ref_name }}-SHA256.txt" --generate-notes --prerelease --title "Agent-Tool ${{ github.ref_name }}（預發布）"
+          $tag = $env:GITHUB_REF_NAME
+          $archive = "Agent-Tool-$tag-source.zip"
+          $checksum = "Agent-Tool-$tag-SHA256.txt"
+          gh release create $tag $archive $checksum --generate-notes --prerelease --title "Agent-Tool $tag（預發布）"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
