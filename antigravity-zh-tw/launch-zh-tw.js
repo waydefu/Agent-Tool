@@ -5,9 +5,11 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createOwnerGuard } = require('../shared/cdp-owner');
 const { loadLocale, buildPreloadFragment } = require('./src/locale');
 
 const PORT = 9339;
+const ensureOwner = createOwnerGuard('antigravity', PORT);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe');
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
@@ -42,13 +44,18 @@ function cacheData() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function targets() {
   const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
-  return res.json();
+  if (!res.ok) { const e = new Error('Unrecognized CDP HTTP endpoint'); e.code = 'UNTRUSTED_CDP'; throw e; }
+  ensureOwner();
+  const list = await res.json();
+  if (!Array.isArray(list)) { const e = new Error('Invalid CDP target list'); e.code = 'UNTRUSTED_CDP'; throw e; }
+  return list;
 }
 
 function isLocalDebugSocket(wsUrl) {
   try {
     const u = new URL(wsUrl);
-    return u.protocol === 'ws:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost') && u.port === String(PORT);
+    return u.protocol === 'ws:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost') &&
+      u.port === String(PORT) && !u.username && !u.password && /^\/devtools\/page\/[A-Za-z0-9-]+$/.test(u.pathname);
   } catch { return false; }
 }
 
@@ -56,9 +63,11 @@ function isAntigravityPage(t) {
   if (t.type !== 'page' || !isLocalDebugSocket(t.webSocketDebuggerUrl)) return false;
   try {
     const u = new URL(t.url || '');
-    const appSchemes = new Set(['file:', 'app:', 'antigravity:', 'agy:', 'vscode-file:', 'vscode-webview:']);
-    return appSchemes.has(u.protocol) ||
-      ((u.protocol === 'http:' || u.protocol === 'https:') && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+    if (u.protocol === 'antigravity:' || u.protocol === 'agy:') return true;
+    if (u.protocol === 'app:') return !u.hostname || u.hostname === 'antigravity';
+    if (u.protocol === 'file:') return /\/antigravity\//i.test(u.pathname);
+    return (u.protocol === 'http:' || u.protocol === 'https:') &&
+      (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
   } catch { return false; }
 }
 
@@ -81,10 +90,19 @@ function inject(target) {
 
 (async () => {
   let up = false;
-  try { await targets(); up = true; } catch {}
+  try { await targets(); up = true; } catch (e) {
+    if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
+  }
   if (!up) {
     log('starting Antigravity with debug port');
-    spawn(EXE, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore' }).unref();
+    try {
+      const child = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore' });
+      child.on('error', (e) => { log('Antigravity launch failed: ' + String(e.code || 'unknown')); process.exit(1); });
+      child.unref();
+    } catch (e) {
+      log('Antigravity launch failed: ' + String(e.code || 'unknown'));
+      process.exit(1);
+    }
   }
   let misses = 0;
   let seen = false;
@@ -96,14 +114,19 @@ function inject(target) {
       misses = 0;
       for (const t of list) {
         if (done.has(t.id) || !isAntigravityPage(t)) continue;
+        ensureOwner(true);
         if (await inject(t)) { done.add(t.id); log('injected approved app target'); }
       }
       // 每 30 秒（第一次立即）更新快取命中面板。
       if (hud && tick++ % 15 === 0) {
         const json = await cacheData();
-        if (json) for (const t of list) if (done.has(t.id) && /Antigravity/i.test(t.title || '')) await evaluate(t, `window.__agyCacheHud && window.__agyCacheHud(${json})`);
+        if (json) {
+          ensureOwner(true);
+          for (const t of list) if (done.has(t.id) && isAntigravityPage(t)) await evaluate(t, `window.__agyCacheHud && window.__agyCacheHud(${json})`);
+        }
       }
-    } catch {
+    } catch (e) {
+      if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
       misses += 1;
       // 還沒啟動完成時最多等 3 分鐘；啟動過後連續 20 秒連不上就視為 App 已關閉。
       if ((seen && misses > 10) || (!seen && misses > 90)) { log('exit'); process.exit(0); }
