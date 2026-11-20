@@ -20,6 +20,7 @@
 """
 import argparse, glob, json, os, re, sqlite3, sys, time
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -56,6 +57,23 @@ def clean_title(t):
     first = next((line.strip() for line in t.splitlines() if line.strip()), "")
     first = re.sub(r"^#+\s*", "", first)
     return first[:48]
+
+
+def parse_event_ts(ts_str, rl=None, fallback=0.0):
+    """從事件 ISO timestamp 或 rate_limits.resets_at 取得真實事件時間戳，避免舊檔因 mtime 被摸過而蓋過新紀錄。"""
+    if isinstance(ts_str, str) and ts_str:
+        try:
+            return datetime.fromisoformat(ts_str.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            pass
+    if isinstance(rl, dict):
+        pri_rst = (rl.get("primary") or {}).get("resets_at")
+        if isinstance(pri_rst, (int, float)) and pri_rst > 0:
+            return float(pri_rst) - 18000.0
+        sec_rst = (rl.get("secondary") or {}).get("resets_at")
+        if isinstance(sec_rst, (int, float)) and sec_rst > 0:
+            return float(sec_rst) - 604800.0
+    return float(fallback or 0.0)
 
 
 def default_host_lists():
@@ -139,8 +157,11 @@ def parse_rollout(path, default_model="unknown"):
                     if w:
                         ctx_window = w
                     if p.get("rate_limits"):
-                        rate_limits = p["rate_limits"]
-                        rate_ts = os.path.getmtime(path)
+                        rl_cand = p["rate_limits"]
+                        ts_cand = parse_event_ts(d.get("timestamp"), rl_cand, os.path.getmtime(path))
+                        if ts_cand >= rate_ts:
+                            rate_limits = rl_cand
+                            rate_ts = ts_cand
             elif t == "token_usage_record":
                 u = p.get("usage") or {}
                 inp = int(u.get("input_tokens") or 0)
@@ -490,9 +511,10 @@ def collect(days=30):
     return per_model, convs, latest_quota
 
 
-def format_quota(rl):
+def format_quota(rl, now=None):
     if not rl:
         return []
+    now_ts = time.time() if now is None else float(now)
     buckets = []
     for key, label, win in (("primary", "5h", "五小時"), ("secondary", "week", "每週")):
         b = rl.get(key)
@@ -506,9 +528,14 @@ def format_quota(rl):
             continue
         if not (0 <= used <= 100):
             continue
-        rem = max(0, min(100, round(100.0 - used)))
-        rst = b.get("resets_at")
-        rst_str = time.strftime("%m/%d %H:%M", time.localtime(rst)) + " 重置" if rst else ""
+        rst = b.get("resets_at") or b.get("reset_at")
+        if isinstance(rst, (int, float)) and rst > 0 and rst <= now_ts:
+            used = 0.0
+            rem = 100
+            rst_str = time.strftime("%m/%d %H:%M", time.localtime(rst)) + " 已重置"
+        else:
+            rem = max(0, min(100, round(100.0 - used)))
+            rst_str = time.strftime("%m/%d %H:%M", time.localtime(rst)) + " 重置" if rst else ""
         buckets.append({
             "window": label,
             "label": win,
@@ -682,7 +709,8 @@ def summary_en(days):
     for group in d["quota"]:
         buckets = " | ".join(
             "%s remaining %s%% (%s)" %
-            ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"], b["reset"].replace(" 重置", " reset"))
+            ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"],
+             b["reset"].replace(" 已重置", " already reset").replace(" 重置", " reset"))
             for b in group["buckets"]
         )
         print("== %s quota (%s): %s" % (group["name"], group["plan"], buckets))

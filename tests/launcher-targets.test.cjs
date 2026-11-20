@@ -38,8 +38,10 @@ test('Antigravity accepts local app and local debug WebSocket', () => {
   assert.equal(ag.isAntigravityPage(tab('app://antigravity/', 9339, 'evil.invalid')), false);
 });
 
-test('Codex denies spoofed host, title and remote debug endpoint', () => {
+test('Codex denies spoofed host, title, avatar-overlay and remote debug endpoint', () => {
   assert.equal(cd.isMainPage(tab('https://chatgpt.com/', 9340)), true);
+  assert.equal(cd.isMainPage(tab('app://-/index.html', 9340)), true);
+  assert.equal(cd.isMainPage(tab('app://-/index.html?initialRoute=%2Favatar-overlay', 9340)), false);
   assert.equal(cd.isMainPage(tab('https://chatgpt.com.attacker.invalid/', 9340, '127.0.0.1', 'ChatGPT')), false);
   assert.equal(cd.isMainPage(tab('https://evil.invalid/', 9340, '127.0.0.1', 'ChatGPT')), false);
   assert.equal(cd.isMainPage(tab('https://chatgpt.com/', 9340, 'evil.invalid')), false);

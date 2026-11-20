@@ -80,6 +80,7 @@
   function mount() {
     if (root && document.body && document.body.contains(root)) return root;
     if (!document.body || !document.head) return null;
+    document.getElementById('codex-cache-hud')?.remove();
     document.getElementById('codex-cache-hud-style')?.remove();
     const st = document.createElement('style');
     st.id = 'codex-cache-hud-style';
@@ -137,11 +138,93 @@
       `<text x="10.5" y="13.2" text-anchor="middle" font-size="${p >= 100 ? 6.5 : 8}" fill="#e6e6e6">${p}</text></svg>`;
   };
 
+  function fmtReset(sec, hoverText) {
+    const ts = Number(sec);
+    if (Number.isFinite(ts) && ts > 0) {
+      const d = new Date(ts * 1000);
+      if (!Number.isNaN(d.getTime())) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${stamp} ${t('重置', 'reset')}`;
+      }
+    }
+    return hoverText ? String(hoverText) : '';
+  }
+
+  function readLiveQuota() {
+    try {
+      if (typeof document.querySelector !== 'function') return null;
+      const btn = document.querySelector('button[aria-description*="5"], button[aria-label="使用額度"], button[aria-label*="Usage"], button[aria-label*="limit"]');
+      if (!btn) return null;
+      const fk = Object.keys(btn).find((k) => k.startsWith('__reactFiber$'));
+      let usage = null, menuData = null, childRem = null;
+      if (fk && btn[fk]) {
+        let cur = btn[fk];
+        if (cur.child?.memoizedProps?.remaining) childRem = cur.child.memoizedProps.remaining;
+        for (let i = 0; i < 45 && cur; i++, cur = cur.return) {
+          let s = cur.memoizedState;
+          for (let j = 0; j < 25 && s; j++, s = s.next) {
+            const v = s.memoizedState;
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              if (v.usage?.rate_limit) usage = v.usage;
+              if (v.data?.menu?.rows) menuData = v.data;
+            }
+          }
+          if (usage) break;
+        }
+      }
+      const rows = menuData?.menu?.rows || [];
+      const hover5h = rows[0]?.hover?.text || '';
+      const hoverWk = rows[1]?.hover?.text || '';
+      const buckets = [];
+      const rl = usage?.rate_limit;
+      if (rl) {
+        for (const [k, win, lbl, hv] of [
+          ['primary_window', '5h', '五小時', hover5h],
+          ['secondary_window', 'week', '每週', hoverWk],
+        ]) {
+          const w = rl[k];
+          if (!w || w.used_percent == null) continue;
+          const used = Number(w.used_percent);
+          if (!Number.isFinite(used) || used < 0 || used > 100) continue;
+          const rem = Math.max(0, Math.min(100, Math.round(100 - used)));
+          const rst = fmtReset(w.reset_at || w.resets_at, hv);
+          buckets.push({ window: win, label: lbl, remaining: rem, used: Math.round(used * 10) / 10, reset: rst });
+        }
+      } else if (childRem && (childRem.fiveHour != null || childRem.weekly != null)) {
+        if (childRem.fiveHour != null) {
+          const rem = Math.max(0, Math.min(100, Math.round(Number(childRem.fiveHour))));
+          buckets.push({ window: '5h', label: '五小時', remaining: rem, used: 100 - rem, reset: hover5h });
+        }
+        if (childRem.weekly != null) {
+          const rem = Math.max(0, Math.min(100, Math.round(Number(childRem.weekly))));
+          buckets.push({ window: 'week', label: '每週', remaining: rem, used: 100 - rem, reset: hoverWk });
+        }
+      } else {
+        const desc = (typeof btn.getAttribute === 'function' && btn.getAttribute('aria-description')) || '';
+        const m5 = desc.match(/5\s*(?:小時|h)[^0-9]*([0-9]{1,3})\s*%/i);
+        const mw = desc.match(/(?:每週|week)[^0-9]*([0-9]{1,3})\s*%/i);
+        if (m5) {
+          const rem = Math.max(0, Math.min(100, Number(m5[1])));
+          buckets.push({ window: '5h', label: '五小時', remaining: rem, used: 100 - rem, reset: hover5h });
+        }
+        if (mw) {
+          const rem = Math.max(0, Math.min(100, Number(mw[1])));
+          buckets.push({ window: 'week', label: '每週', remaining: rem, used: 100 - rem, reset: hoverWk });
+        }
+      }
+      if (!buckets.length) return null;
+      return [{ name: 'Codex / GPT', plan: usage?.plan_type || 'plus', buckets }];
+    } catch {
+      return null;
+    }
+  }
+
   function renderQuota() {
     const r = mount();
     if (!r) return;
     const q = r.querySelector('.quota');
-    const groups = data?.quota || [];
+    const groups = readLiveQuota() || data?.quota || [];
     if (!groups.length) {
       q.textContent = 'Codex';
       return;
@@ -149,7 +232,10 @@
     q.innerHTML = groups.map((g) => {
       return `<span>${esc(g.name)}</span>` + (g.buckets || []).map((b) => {
         const p = b.remaining ?? 0;
-        return ring(p, `${g.name} ${b.window === '5h' ? t('五小時', '5-hour') : b.window === 'week' ? t('每週', 'weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%), ${LANG === 'en' ? String(b.reset).replace(' 重置', ' reset') : b.reset}`);
+        const rstText = LANG === 'en'
+          ? String(b.reset || '').replace(' 已重置', ' already reset').replace(' 重置', ' reset')
+          : String(b.reset || '');
+        return ring(p, `${g.name} ${b.window === '5h' ? t('五小時', '5-hour') : b.window === 'week' ? t('每週', 'weekly') : t(b.label, b.label)} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%)${rstText ? ', ' + rstText : ''}`);
       }).join('');
     }).join('<span class="sep">｜</span>');
   }
@@ -282,8 +368,11 @@
     data = d;
     render();
   };
+  let tick = 0;
   const timer = setInterval(() => {
     if (window.__codexHudGen !== GEN) return clearInterval(timer);
+    tick = (tick + 1) % 15;
     if (data && selectedId() !== shown) render();
+    else if (tick === 0) renderQuota();
   }, 1000);
 })();
