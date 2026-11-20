@@ -32,7 +32,13 @@ function runHud(file, lang) {
     location: { href: 'app://main/', pathname: '/', search: '' },
     setInterval: () => 0, clearInterval: () => {},
     setTimeout: () => 0, addEventListener: () => {},
-    fetch: async () => ({ ok: true, json: async () => ({ response: { groups: [] } }) }),
+    fetch: async () => ({ ok: true, json: async () => ({ response: { groups: [{
+      displayName: 'Gemini Models',
+      buckets: [
+        { window: '5h', remainingFraction: 0.75, resetTime: '2026-11-21T08:00:00+08:00' },
+        { window: 'week', remainingFraction: null, resetTime: '2026-11-22T08:00:00+08:00' },
+      ],
+    }] } }) }),
   };
   vm.runInNewContext(fs.readFileSync(file, 'utf8'), context, { filename: file, timeout: 1000 });
   const data = {
@@ -97,4 +103,13 @@ test('English VBS launchers select the explicit language flag', () => {
   const cd = fs.readFileSync('codex-cache-watch/launch-codex-hud-en.vbs', 'utf8');
   assert.match(ag, /--lang=en/);
   assert.match(cd, /--lang=en/);
+});
+
+test('Antigravity English quota tooltip renders a valid reset and ignores missing values', async () => {
+  const hud = runHud('agy-cache-watch/hud.js', 'en');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(hud.quota.innerHTML, /quota remaining 75%/);
+  assert.match(hud.quota.innerHTML, /reset/);
+  assert.equal((hud.quota.innerHTML.match(/<svg/g) || []).length, 1,
+    'an absent remainingFraction must not appear as exhausted quota');
 });
