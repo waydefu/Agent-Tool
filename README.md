@@ -22,7 +22,7 @@
 
 ## 授權與來源
 
-繁中啟動器中的上游翻譯引擎與字典源自 [antigravity-zh](https://github.com/wade19990814-hue/antigravity-zh)，相關 MIT 授權與著作權聲明見 [子目錄 LICENSE](./antigravity-zh-tw/LICENSE)。目前倉庫根目錄尚未指定統一授權。
+繁中啟動器中的上游翻譯引擎與字典源自 [antigravity-zh](https://github.com/wade19990814-hue/antigravity-zh)，相關 MIT 授權與著作權聲明見 [子目錄 LICENSE](./antigravity-zh-tw/LICENSE)。本專案的自有程式與文件採用 [MIT 授權](./LICENSE)，第三方內容沿用各自的授權與著作權聲明。
 
 ---
 
