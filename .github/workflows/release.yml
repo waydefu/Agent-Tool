@@ -1,0 +1,54 @@
+name: Release candidate
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  prerelease:
+    name: windows-source-prerelease
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: 發布前自動化驗收
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I agy-cache-watch/agy_cache.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I codex-cache-watch/codex_cache.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test tests/launcher-targets.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'codex-cache-watch/SafeClose-Codex.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) { throw 'PowerShell syntax validation failed' }
+      - name: 封裝原始碼 ZIP（非執行檔、非安裝程式）
+        shell: pwsh
+        run: |
+          git archive --format=zip --output="Agent-Tool-${{ github.ref_name }}-source.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash "Agent-Tool-${{ github.ref_name }}-source.zip" -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  Agent-Tool-${{ github.ref_name }}-source.zip" } |
+            Set-Content -Encoding utf8 "Agent-Tool-${{ github.ref_name }}-SHA256.txt"
+      - name: 建立預發布版本（待 Windows 真機驗收後才能標為 Stable）
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "Agent-Tool-${{ github.ref_name }}-source.zip" "Agent-Tool-${{ github.ref_name }}-SHA256.txt" --generate-notes --prerelease --title "Agent-Tool ${{ github.ref_name }}（預發布）"

@@ -1,0 +1,53 @@
+name: 錯誤回報
+description: 回報工具故障或相容性問題（請勿貼上敏感資料）
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: tool
+    attributes:
+      label: 受影響的工具
+      options:
+        - Antigravity 繁中啟動器
+        - Antigravity 用量面板
+        - ChatGPT／Codex 用量面板
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 執行環境
+      description: Windows 版本、桌面 App 版本、Node.js 與 Python 版本（適用時）
+      placeholder: "Windows 11 24H2；App x.y；Node 22；Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 重現步驟
+      description: 請提供不含帳號或對話內容的最小重現方式。
+      placeholder: |
+        1. 完全結束桌面 App
+        2. 以啟動器啟動
+        3. 點選……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期結果與實際結果
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: 經過遮蔽的錯誤訊息（選填）
+      description: 禁止上傳原始 .codex/.gemini 工作階段、資料庫、完整報表、權杖、Cookie、對話或個人路徑。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隱私確認
+      options:
+        - label: 我已移除所有帳號、權杖、對話、工作階段與可識別個人資訊。
+          required: true

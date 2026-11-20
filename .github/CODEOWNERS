@@ -1,0 +1,5 @@
+# 維護者負責審查；單人維護不代表必須啟用 1 人核准的合併門檻。
+* @waydefu
+/.github/ @waydefu
+/tests/ @waydefu
+/codex-cache-watch/SafeClose-Codex.ps1 @waydefu

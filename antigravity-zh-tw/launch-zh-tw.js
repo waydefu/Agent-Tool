@@ -45,6 +45,23 @@ async function targets() {
   return res.json();
 }
 
+function isLocalDebugSocket(wsUrl) {
+  try {
+    const u = new URL(wsUrl);
+    return u.protocol === 'ws:' && (u.hostname === '127.0.0.1' || u.hostname === 'localhost') && u.port === String(PORT);
+  } catch { return false; }
+}
+
+function isAntigravityPage(t) {
+  if (t.type !== 'page' || !isLocalDebugSocket(t.webSocketDebuggerUrl)) return false;
+  try {
+    const u = new URL(t.url || '');
+    const appSchemes = new Set(['file:', 'app:', 'antigravity:', 'agy:', 'vscode-file:', 'vscode-webview:']);
+    return appSchemes.has(u.protocol) ||
+      (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+  } catch { return false; }
+}
+
 const done = new Set();
 function inject(target) {
   return new Promise((resolve) => {
@@ -78,8 +95,7 @@ function inject(target) {
       seen = true;
       misses = 0;
       for (const t of list) {
-        if (t.type !== 'page' || !t.webSocketDebuggerUrl || done.has(t.id)) continue;
-        if (!/^(file|app|antigravity|agy|http:\/\/(localhost|127\.0\.0\.1))/i.test(t.url || '') && !/antigravity/i.test(t.title || '')) continue;
+        if (done.has(t.id) || !isAntigravityPage(t)) continue;
         if (await inject(t)) { done.add(t.id); log(`injected: ${t.title} ${t.url}`); }
       }
       // 每 30 秒（第一次立即）更新快取命中面板。

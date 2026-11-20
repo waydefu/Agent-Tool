@@ -16,7 +16,6 @@
   python -I codex_cache.py --days 30    只算最近 N 天有更新的對話（預設 30 天）
   python -I codex_cache.py --json       輸出 JSON（給 App 內的 HUD 面板用）
   python -I codex_cache.py --html       產生視覺化 report.html 並開啟
-  python -I codex_cache.py --watch 30   每 30 秒列出最新對話的新呼叫
   python -I codex_cache.py --selftest   自我測試
 """
 import argparse, glob, json, os, re, sqlite3, sys, time
@@ -274,7 +273,8 @@ def parse_rollout(path, default_model="gpt-6"):
             "記憶檔案": mem_list,
             "自訂代理": agents_list or ["/root (主控代理)"],
         },
-        "exact": True,
+        "exact": False,
+        "source": "rollout",
     }
     return calls, breakdown, rate_limits, rate_ts
 
@@ -361,6 +361,7 @@ def estimate_from_sqlite(cid, model, tokens_used, hist_con, host_skills, host_me
             "自訂代理": child_agents or ["/root (主控代理)"],
         },
         "exact": False,
+        "source": "sqlite_estimate",
     }
     return calls, breakdown
 
@@ -442,6 +443,7 @@ def collect(days=30):
 
             rp_clean = clean_path(rp)
             calls, breakdown = [], None
+            estimated = False
             if rp_clean and os.path.exists(rp_clean):
                 calls, breakdown, rl, rts = parse_rollout(rp_clean, model)
                 if rl and rts > latest_quota_ts:
@@ -451,6 +453,7 @@ def collect(days=30):
                 calls, breakdown = estimate_from_sqlite(
                     cid, model, tok_used, hist_con, host_skills, host_mems, children_map.get(cid)
                 )
+                estimated = bool(calls)
             if not calls:
                 continue
 
@@ -468,7 +471,11 @@ def collect(days=30):
                 "time": t_str,
                 "calls": calls,
                 "breakdown": breakdown,
+                "estimated": estimated,
             })
+            # 推估的呼叫與快取命中不得混入真實量測的全域與模型統計。
+            if estimated:
+                continue
             for _, (m, u, c, o, _) in calls:
                 s = per_model[m]
                 s[0] += 1
@@ -519,6 +526,8 @@ def build_json(days=30):
     pm, convs, rl = collect(days)
     subs = defaultdict(lambda: [0, 0, 0, 0])
     for c in convs:
+        if c.get("estimated"):
+            continue
         if c["parent"] or c["agent"]:
             ag = c["agent"] or "子代理"
             for _, (m, u, cr, o, _) in c["calls"]:
@@ -555,6 +564,7 @@ def build_json(days=30):
             {
                 "id": c["id"],
                 "title": c["title"],
+                "estimated": c.get("estimated", False),
                 "parent": c["parent"],
                 "agent": c["agent"],
                 "time": c["time"],
@@ -579,7 +589,7 @@ def summary(days):
             b_str = " ｜ ".join(f"{b['label']}剩餘 {b['remaining']}%（{b['reset']}）" for b in g["buckets"])
             print(f"== {g['name']} 額度 ({g['plan']})：{b_str}\n")
     if not d["models"]:
-        print("找不到有用量紀錄的對話。")
+        print("找不到可驗證的真實用量紀錄；歷史推估資料不計入命中率統計。")
         return
     print("== 各模型快取命中率（命中率 = 快取讀取 ÷ 全部輸入）")
     print("%-24s %6s %8s %10s" % ("模型", "呼叫", "命中率", "0%次數"))

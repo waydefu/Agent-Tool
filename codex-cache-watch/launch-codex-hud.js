@@ -102,9 +102,15 @@ function inject(target) {
 
 function isMainPage(t) {
   if (t.type !== 'page' || !t.webSocketDebuggerUrl) return false;
-  const u = t.url || '';
-  if (u.includes('avatar-overlay') || u.startsWith('devtools://')) return false;
-  return /^(app|file|https?:\/\/(localhost|127\.0\.0\.1|chatgpt\.com))/i.test(u) || /Codex|ChatGPT/i.test(t.title || '');
+  try {
+    const ws = new URL(t.webSocketDebuggerUrl);
+    if (ws.protocol !== 'ws:' || !['127.0.0.1', 'localhost'].includes(ws.hostname) || ws.port !== String(PORT)) return false;
+    const u = new URL(t.url || '');
+    if (u.pathname.includes('avatar-overlay')) return false;
+    if (['app:', 'file:', 'vscode-file:', 'vscode-webview:'].includes(u.protocol)) return true;
+    if (u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname)) return true;
+    return u.protocol === 'https:' && (u.hostname === 'chatgpt.com' || u.hostname.endsWith('.chatgpt.com'));
+  } catch { return false; }
 }
 
 (async () => {

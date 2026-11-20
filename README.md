@@ -1,5 +1,7 @@
 # Agent-Tool
 
+[![CI](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml/badge.svg)](https://github.com/waydefu/Agent-Tool/actions/workflows/ci.yml)
+
 給 Windows 上的 Google Antigravity、ChatGPT 與 Codex 桌面使用者的社群工具，提供繁體中文介面、模型額度與 Token 用量觀察。
 
 | 工具 | 功能 |
@@ -14,7 +16,16 @@
 2. 準備 Windows、Node.js 22 以上與 Python 3。只看終端機用量時，直接在對應工具資料夾執行 `python agy_cache.py` 或 `python codex_cache.py`。
 3. 需要桌面介面時，依下方各工具的「使用」段落建立捷徑。設定前先完全關閉已經開啟的桌面程式。
 
-這是獨立社群專案。桌面程式更新後，介面或本機資料格式可能改變。Antigravity 的繁中啟動器依 App 2.33 說明，其他版本的相容性需另行確認。
+這是獨立社群專案，**不是 Google 或 OpenAI 官方工具**。目前提供的是需要 Node.js 與 Python 的原始碼／腳本，**不是一鍵安裝程式**。桌面程式更新後，介面或本機資料格式可能改變。Antigravity 的繁中啟動器依 App 2.33 說明，其他版本的相容性需另行確認。
+
+**驗證狀態：** 自動化測試和 Windows 桌面實機驗收是不同層級。請先參閱 [測試範圍](docs/TESTING.md) 與 [安全稽核](docs/SECURITY_AUDIT.md)；在完成實機驗收之前，不宣稱全面相容或正式穩定。
+
+## 社群協作與安全
+
+- [貢獻指南](CONTRIBUTING.md)：如何回報、測試並提交修正。
+- [安全政策](SECURITY.md)：CDP、本機資料與私下回報方式。
+- [變更紀錄](CHANGELOG.md)：尚未發布與已發布的變更。
+- [測試說明](docs/TESTING.md) 與 [發布檢查表](docs/RELEASE_CHECKLIST.md)：CI 與實機測試界線。
 
 ## 問題回報
 
@@ -47,7 +58,7 @@
 - 刻意保留英文：模型名稱、技能名稱、品牌與方案名稱、按鍵名稱、使用者自己的內容。
 
 ### 注意
-- App 開著時，除錯埠可讓**本機其他程式**操作 Antigravity（只綁 127.0.0.1，外部連不進來）。
+- App 開著時，除錯埠可能讓**本機其他程式**操作 Antigravity；只綁 `127.0.0.1` **不等於有存取驗證**，不要轉發或對外開放。詳見 [安全政策](SECURITY.md)。
 - 翻譯引擎（`src/locale.js`、`src/patches/*.jsfrag`）與原始字典來自 [antigravity-zh](https://github.com/wade19990814-hue/antigravity-zh)，MIT 授權，見 `antigravity-zh-tw/LICENSE`。本 repo 不包含它修改 `app.asar` 的指令。
 
 ---
@@ -131,3 +142,11 @@ Codex / GPT ◯71 ◯70   快取 97.7%
 ### 資料來源（全部唯讀）
 - `~/.codex/sessions/**/rollout-*.jsonl`：`token_usage_record`（每次呼叫的 `input_tokens`、`cached_input_tokens`、`output_tokens`）、`event_msg.token_count.rate_limits`（五小時與每週額度）、`world_state` 與 `response_item`（系統提示、工具、Skills、記憶與自訂代理結構）。
 - `~/.codex/state_5.sqlite` 與 `thread_history_1.sqlite`：對話標題、模型名稱、母子代理關係（`thread_spawn_edges`）與歷史對話步數。
+
+
+### 統計精度與已知限制
+
+- 有 `token_usage_record` 的對話：快取讀取、未命中輸入、輸出量使用真實紀錄；但 **Codex 上下文分類仍有按字元換算的估算部分**。
+- 若只有 SQLite 歷史資料且找不到 rollout：每次呼叫與命中率均為**推估**，HUD 會標明，且不混入模型與全域實測命中率。
+- 自動壓縮緩衝區、延遲載入項目及某些 Context 欄位為估算或預設值，非官方保證。請勿用於精密計費。
+- 桌面 App 注入方式依賴非公開內部實作；除錯埠開啟期間請避免在不信任的電腦使用。

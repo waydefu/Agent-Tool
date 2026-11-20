@@ -5,7 +5,7 @@
 #  (2) 路徑與祖先白名單鎖：子行程本身或其直線 Codex 祖先必須明確帶有 `.codex`、`OpenAI\Codex`、`WindowsApps\OpenAI.Codex` 或為 Codex 直屬 MCP 行程，且命令列不得含有 `.claude`、`.gemini`、`antigravity`、`hermes`、`cursor`。
 $ErrorActionPreference = 'SilentlyContinue'
 
-$baseNames = @('ChatGPT', 'codex', 'codex-code-mode-host', 'codex-command-runner', 'codex-computer-use-swift', 'WallpaperHost', 'Start-Codex-Dragon')
+$baseNames = @('ChatGPT', 'codex', 'codex-code-mode-host', 'codex-command-runner', 'codex-computer-use-swift')
 $procs = @(Get-Process -Name $baseNames -ErrorAction SilentlyContinue)
 if (-not $procs) {
     Write-Host 'Codex 目前沒有在執行。'
@@ -22,7 +22,9 @@ $rootIds = [System.Collections.Generic.HashSet[int]]::new()
 foreach ($p in $procs) {
     $cim = $byId[[int]$p.Id]
     $pathAndCmd = "$($cim.ExecutablePath) $($cim.CommandLine)"
-    if ($pathAndCmd -notmatch '\.claude|\.gemini|antigravity|hermes|cursor') {
+    # 不以行程名稱單獨認定歸屬；只有 OpenAI Codex 安裝路徑或 .codex 工作路徑才可作為根行程。
+    $trustedPath = $pathAndCmd -match 'OpenAI\.Codex_|OpenAI[\\/]Codex|[\\/]\.codex[\\/]'
+    if ($trustedPath -and $pathAndCmd -notmatch '\.claude|\.gemini|antigravity|hermes|cursor') {
         [void]$rootIds.Add([int]$p.Id)
     }
 }
@@ -76,7 +78,10 @@ for ($depth = 0; $depth -lt 4; $depth++) {
 }
 
 # 一併找出 launch-codex-hud.js 的 node 守護行程（限定命令列包含 launch-codex-hud.js）
-$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -match 'launch-codex-hud\.js' })
+$hudScript = [regex]::Escape((Join-Path $PSScriptRoot 'launch-codex-hud.js'))
+# 由桌面啟動器呼叫 SafeClose 時，不能在重啟完成前終止呼叫它的父 Node 行程。
+$callerProcessId = if ($byId.ContainsKey([int]$PID)) { [int]$byId[[int]$PID].ParentProcessId } else { -1 }
+$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -match $hudScript -and [int]$_.ProcessId -ne $callerProcessId })
 
 # 檢查最近 $IdleSeconds 秒內是否有對話紀錄正在寫入
 $sess = "$env:USERPROFILE\.codex\sessions"
