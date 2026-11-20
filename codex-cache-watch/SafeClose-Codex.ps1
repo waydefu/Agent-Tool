@@ -79,60 +79,7 @@ for ($depth = 0; $depth -lt 4; $depth++) {
 
 # 一併找出 launch-codex-hud.js 的 node 守護行程（限定命令列包含 launch-codex-hud.js）
 $hudScript = [regex]::Escape((Join-Path $PSScriptRoot 'launch-codex-hud.js'))
-$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?
-
-# 檢查最近 $IdleSeconds 秒內是否有對話紀錄正在寫入
-$sess = "$env:USERPROFILE\.codex\sessions"
-$recent = Get-ChildItem $sess -Recurse -File -Filter *.jsonl -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime -gt (Get-Date).AddSeconds(-$IdleSeconds) } |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-
-$busy = @()
-if ($activeKids.Count -gt 0) {
-    $names = ($activeKids | ForEach-Object { "$($_.Name) (PID $($_.ProcessId))" } | Select-Object -Unique) -join ', '
-    $busy += "還有執行中的工作子行程: $names"
-}
-if ($recent) {
-    $ago = [int]((Get-Date) - $recent.LastWriteTime).TotalSeconds
-    $busy += "對話紀錄在 $ago 秒前剛有寫入: $($recent.Name)"
-}
-
-if ($busy -and -not $Force) {
-    Write-Host "Codex 可能還在工作，先不關閉:`n - $($busy -join "`n - ")"
-    Write-Host '若確定要立刻強制關閉，請加上 -Force 參數，或等它做完再點一次。'
-    Start-Sleep 5
-    return
-}
-
-# 最終要清理的清單：只清理 Codex 主行程、已通過 Codex 路徑白名單驗證的常駐輔助行程（或 Force 下的子行程）、以及 HUD 啟動器
-$killIds = [System.Collections.Generic.HashSet[int]]::new($rootIds)
-foreach ($d in $daemonKids) { [void]$killIds.Add([int]$d.ProcessId) }
-if ($Force) {
-    foreach ($a in $activeKids) { [void]$killIds.Add([int]$a.ProcessId) }
-}
-foreach ($h in $hudProcs) { [void]$killIds.Add([int]$h.ProcessId) }
-
-if ($DryRun) {
-    Write-Host "目前判斷為閒置，可以安全關閉（試跑，未關閉）。"
-    Write-Host (" - Codex 主行程與引擎: {0} 個｜Codex 專屬 MCP/REPL 子行程: {1} 個｜HUD 啟動器: {2} 個（合計 {3} 個）" -f $rootIds.Count, $daemonKids.Count, $hudProcs.Count, $killIds.Count)
-    return
-}
-
-# 1. 先嘗試請求 ChatGPT 主視窗優雅關閉，讓 SQLite WAL 與視窗狀態正常落盤
-$mainWins = @(Get-Process -Name ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
-foreach ($w in $mainWins) { [void]$w.CloseMainWindow() }
-if ($mainWins.Count -gt 0) { Start-Sleep -Milliseconds 1200 }
-
-# 2. 清理所有殘留的 Codex 專屬行程
-$remaining = @(Get-Process -Id ([int[]]@($killIds)) -ErrorAction SilentlyContinue)
-if ($remaining) {
-    $remaining | Stop-Process -Force -ErrorAction SilentlyContinue
-}
-
-Write-Host ("已安全且完整關閉 Codex（共清理 {0} 個行程，含 {1} 個 Codex 專屬 MCP/REPL 輔助行程）。" -f $killIds.Count, $daemonKids.Count)
-Start-Sleep 2
- -and $_.CommandLine -match $hudScript })
+$hudProcs = @($all | Where-Object { $_.Name -match '^node(\.exe)?$' -and $_.CommandLine -match $hudScript })
 
 # 檢查最近 $IdleSeconds 秒內是否有對話紀錄正在寫入
 $sess = "$env:USERPROFILE\.codex\sessions"
