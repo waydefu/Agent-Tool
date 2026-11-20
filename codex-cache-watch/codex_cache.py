@@ -587,7 +587,7 @@ def summary(days):
     if not d["models"]:
         print("找不到可驗證的真實用量紀錄；歷史推估資料不計入命中率統計。")
         return
-    print("== 各模型快取命中率（命中率 = 快取讀取 ÷ 全部輸入）")
+    print("== 各模型快取命中率（最近最多40筆對話；命中率 = 快取讀取 ÷ 全部輸入）")
     print("%-24s %6s %8s %10s" % ("模型", "呼叫", "命中率", "0%次數"))
     for m in d["models"]:
         print("%-24s %6d %6.1f%% %8d  %s" % (m["name"][:24], m["calls"], m["hit"], m["zero"], bar(m["hit"])))
@@ -688,7 +688,7 @@ def summary_en(days):
     if not d["models"]:
         print("No measured usage data found. Historical SQLite-only estimates are excluded from measured totals.")
     else:
-        print("== Cache hit rate by model (cached input / total input)")
+        print("== Cache hit rate by model (up to 40 latest threads; cached / total input)")
         print("%-24s %6s %10s %12s" % ("Model", "Calls", "Hit rate", "0% calls"))
         for m in d["models"]:
             print("%-24s %6d %9.1f%% %12d %s" %

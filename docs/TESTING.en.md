@@ -30,4 +30,4 @@ Passing CI is **not** equivalent to real desktop acceptance. Do not mark a build
 - Codex context categories are estimates even with measured calls.
 - SQLite-only historical Codex threads contain modeled call details; their metrics are excluded from global measured totals.
 - Antigravity `gen_metadata` parsing targets an undocumented protobuf layout and requires revalidation on app updates.
-- Data retention windows and per-thread row limits can omit older usage; don't use either dashboard for invoicing.
+- Codex currently scans **at most 40 recently updated threads** within the requested date range; older matching threads are omitted. Data retention can also omit usage. Don't use either dashboard for invoicing.

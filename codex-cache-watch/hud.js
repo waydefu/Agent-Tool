@@ -260,7 +260,7 @@
 
     const tot = d.cache + d.uncached + d.output || 1;
     const segs = [[t('快取讀取', 'Cached input'), d.cache, '#2f81f7'], [t('未命中輸入', 'Uncached input'), d.uncached, '#f0883e'], [t('輸出', 'Output'), d.output, '#2ea39b']];
-    h += `<h4>${t('近期全部：命中', 'Recent usage · cache hit')} ${d.hit}% (${wan(tot)} token)</h4>`;
+    h += `<h4>${t('近 30 天最新最多 40 個對話：命中', 'Up to 40 latest conversations in 30 days · cache hit')} ${d.hit}% (${wan(tot)} token)</h4>`;
     h += '<div class="bar">' + segs.map(([, v, c]) => `<span style="width:${(100 * v / tot).toFixed(2)}%;background:${c}"></span>`).join('') + '</div>';
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
 
@@ -274,7 +274,7 @@
       (expanded.has(c.id) ? detail(c, true) : '')
     ).join('');
 
-    h += `<div class="muted" style="margin-top:8px">更新 ${esc(d.updated)}，每 30 秒自動更新</div>`;
+    h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
     box.innerHTML = h;
   }
 
