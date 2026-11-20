@@ -1,6 +1,38 @@
+# Development artifacts
 node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage/
+.venv/
+venv/
+
+# Logs, exports and temporary files
 *.log
 *.bak*
-__pycache__/
 report.html
 report.en.html
+
+# Local user data and credentials: never upload to the repository
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.jsonl
+.env
+.env.*
+!.env.example
+.codex/
+.gemini/
+**/.codex/
+**/.gemini/
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db

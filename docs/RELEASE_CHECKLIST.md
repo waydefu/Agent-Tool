@@ -2,6 +2,8 @@
 
 正式標示 Stable 前，維護者須完成：
 
+- [ ] 於 GitHub Settings → Rules → Rulesets 啟用適用 `refs/tags/v*` 的 **Tag Ruleset**，限制未授權建立、更新、刪除發布標籤；維護者需確認可行的正式發布權限。Tag 的 main 祖先檢查不能取代標籤權限控制。
+
 - [ ] GitHub Actions `validate-linux` 與 `validate-windows` 全部通過
 - [ ] 在實際 Windows 10/11 與指定桌面版本完成功能／負面測試（參照 [TESTING](TESTING.md)），包含繁中／英文 HUD 及兩種捷徑
 - [ ] 確認 CDP 綁定僅本機且注入目標正確，關閉流程不誤殺其他行程

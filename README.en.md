@@ -14,6 +14,10 @@
 
 **Not an official product of Google or OpenAI.** These are **source scripts**, not an installer. Desktop-app internals can change without notice. Compatibility has not been certified on a real Windows desktop: CI validates source code and synthetic tests, not end-to-end operation.
 
+## GitHub cloud development
+
+Use **Code → Codespaces** for a Linux environment with Python, Node.js, `rg`, and `fd`. See the [development guide](docs/DEVELOPMENT.en.md) and [AGENTS.md](AGENTS.md). No Windows desktop software is modified.
+
 ## Requirements
 
 - Windows 10/11, Node.js **22+** and Python **3** (CI uses Python 3.12).

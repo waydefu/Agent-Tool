@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
       - name: Python 語法與單元測試
@@ -28,6 +28,8 @@ jobs:
           python -m unittest discover -s tests -p "test_*.py" -v
           python -I agy-cache-watch/agy_cache.py --selftest
           python -I codex-cache-watch/codex_cache.py --selftest
+      - name: Dev Container 安裝腳本語法檢查
+        run: bash -n .devcontainer/setup-tools.sh
       - name: JavaScript 語法與注入目標測試
         run: |
           node --check antigravity-zh-tw/launch-zh-tw.js
@@ -44,11 +46,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
       - name: Windows Python / JavaScript / locale
