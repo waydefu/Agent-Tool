@@ -1,16 +1,28 @@
 # Agent-Tool
 
-給 Google Antigravity 桌面版（App 2.33，Windows）與 OpenAI ChatGPT / Codex 桌面版（Windows）用的小工具：
+給 Windows 上的 Google Antigravity、ChatGPT 與 Codex 桌面使用者的社群工具，提供繁體中文介面、模型額度與 Token 用量觀察。
 
-| 資料夾 | 用途 |
+| 工具 | 功能 |
 |---|---|
-| `antigravity-zh-tw/` | 不修改 App 檔案，以**繁體中文介面**啟動 Antigravity |
-| `agy-cache-watch/` | 在 Antigravity 右上角顯示**快取命中率**與**模型額度**，也可在終端機或網頁看 |
-| `codex-cache-watch/` | 在 ChatGPT / Codex 右上角顯示**快取命中率**、**5h/每週模型額度**與**上下文結構細分**（訊息、工具、Skills、記憶、自訂代理） |
+| [Antigravity 繁中啟動器](./antigravity-zh-tw/) | 啟動 Antigravity 時套用繁體中文介面 |
+| [Antigravity 用量面板](./agy-cache-watch/) | 查看快取命中率、模型額度與上下文結構 |
+| [ChatGPT／Codex 用量面板](./codex-cache-watch/) | 查看快取命中率、五小時與每週額度，以及上下文結構 |
 
-資料夾建議都放在同一層（例如 `%USERPROFILE%\.gemini\` 底下），`antigravity-zh-tw` 啟動器會自動找到旁邊的 `agy-cache-watch`。
+## 快速開始
 
-需求：Windows、Node.js 22 以上（內建 `fetch` 與 `WebSocket`）、Python 3（只用標準函式庫）。
+1. 用 GitHub 的 **Code → Download ZIP** 下載並解壓縮。三個工具資料夾請保持在同一層，方便繁中啟動器找到 Antigravity 面板。
+2. 準備 Windows、Node.js 22 以上與 Python 3。只看終端機用量時，直接在對應工具資料夾執行 `python agy_cache.py` 或 `python codex_cache.py`。
+3. 需要桌面介面時，依下方各工具的「使用」段落建立捷徑。設定前先完全關閉已經開啟的桌面程式。
+
+這是獨立社群專案。桌面程式更新後，介面或本機資料格式可能改變。Antigravity 的繁中啟動器依 App 2.33 說明，其他版本的相容性需另行確認。
+
+## 問題回報
+
+請在 [GitHub Issues](https://github.com/waydefu/Agent-Tool/issues) 附上工具名稱、桌面程式與 Windows 版本、重現步驟和預期結果。分享截圖或錯誤訊息前，請遮蔽帳號、對話內容、權杖及個人路徑。請勿上傳原始工作階段紀錄、資料庫或完整用量報表。
+
+## 授權與來源
+
+繁中啟動器中的上游翻譯引擎與字典源自 [antigravity-zh](https://github.com/wade19990814-hue/antigravity-zh)，相關 MIT 授權與著作權聲明見 [子目錄 LICENSE](./antigravity-zh-tw/LICENSE)。本專案的自有程式與文件採用 [MIT 授權](./LICENSE)，第三方內容沿用各自的授權與著作權聲明。
 
 ---
 
