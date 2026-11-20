@@ -79,3 +79,8 @@ jobs:
             }
           }
           Write-Output 'PowerShell syntax OK'
+      - name: Windows CDP 監聽埠擁有者負面測試（合成資料）
+        shell: pwsh
+        run: |
+          & ./tests/verify-cdp-owner.tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
