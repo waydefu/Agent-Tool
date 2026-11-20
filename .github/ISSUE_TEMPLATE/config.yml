@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全性問題回報
+    url: https://github.com/waydefu/Agent-Tool/blob/main/SECURITY.md
+    about: 安全性漏洞請依 SECURITY.md 私下通報，不要公開貼上可利用細節。

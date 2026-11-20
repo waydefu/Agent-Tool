@@ -1,0 +1,33 @@
+name: 功能建議
+description: 提出改善建議，先說明使用情境與預期價值
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: tool
+    attributes:
+      label: 適用工具
+      options:
+        - Antigravity 繁中啟動器
+        - Antigravity 用量面板
+        - ChatGPT／Codex 用量面板
+        - 跨工具／其他
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 問題與使用情境
+      description: 想改善什麼？目前有哪些限制？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建議方案與替代方案
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: 可能的相容性或隱私影響

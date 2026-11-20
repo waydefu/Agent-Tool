@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-linux:
+    name: validate-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python 語法與單元測試
+        run: |
+          python -m compileall -q agy-cache-watch codex-cache-watch tests
+          python -m unittest discover -s tests -p "test_*.py" -v
+          python -I agy-cache-watch/agy_cache.py --selftest
+          python -I codex-cache-watch/codex_cache.py --selftest
+      - name: JavaScript 語法與注入目標測試
+        run: |
+          node --check antigravity-zh-tw/launch-zh-tw.js
+          node --check antigravity-zh-tw/merge-extra.js
+          node --check antigravity-zh-tw/src/locale.js
+          node --check agy-cache-watch/hud.js
+          node --check codex-cache-watch/hud.js
+          node --check codex-cache-watch/launch-codex-hud.js
+          node --test tests/launcher-targets.test.cjs
+          node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
+
+  validate-windows:
+    name: validate-windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Windows Python / JavaScript / locale
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I agy-cache-watch/agy_cache.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I codex-cache-watch/codex_cache.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test tests/launcher-targets.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Windows PowerShell 語法檢查（不執行關閉行程）
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'codex-cache-watch/SafeClose-Codex.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) {
+            $parseErrors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+          Write-Output 'PowerShell syntax OK'
