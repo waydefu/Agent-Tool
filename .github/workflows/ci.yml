@@ -66,14 +66,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Windows PowerShell 語法檢查（不執行關閉行程）
+      - name: Windows PowerShell 語法檢查（不執行行程關閉或驗證）
         shell: pwsh
         run: |
-          $tokens = $null
-          $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'codex-cache-watch/SafeClose-Codex.ps1'), [ref]$tokens, [ref]$parseErrors) | Out-Null
-          if ($parseErrors.Count -ne 0) {
-            $parseErrors | Format-List | Out-String | Write-Error
-            exit 1
+          foreach ($script in @('codex-cache-watch/SafeClose-Codex.ps1', 'shared/Verify-CdpOwner.ps1')) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -ne 0) {
+              $parseErrors | Format-List | Out-String | Write-Error
+              exit 1
+            }
           }
           Write-Output 'PowerShell syntax OK'
