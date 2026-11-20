@@ -707,13 +707,14 @@ def summary_en(days):
     """Print English statistics without mixing SQLite estimates into measured totals."""
     d = build_json(days or 30)
     for group in d["quota"]:
+        gname = "Weekly / 5h" if group["name"] in ("週額度 / 五小額度", "Codex / GPT", "Codex") else group["name"]
         buckets = " | ".join(
             "%s remaining %s%% (%s)" %
             ("5-hour" if b["window"] == "5h" else "weekly", b["remaining"],
              b["reset"].replace(" 已重置", " already reset").replace(" 重置", " reset"))
             for b in group["buckets"]
         )
-        print("== %s quota (%s): %s" % (group["name"], group["plan"], buckets))
+        print("== %s quota (%s): %s" % (gname, group["plan"], buckets))
     if not d["models"]:
         print("No measured usage data found. Historical SQLite-only estimates are excluded from measured totals.")
     else:

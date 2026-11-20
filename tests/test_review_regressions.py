@@ -105,7 +105,10 @@ class ReviewRegressions(unittest.TestCase):
             self.assertIn("Cache hit rate by model", buf.getvalue())
             self.assertIn("unsafe<script>", buf.getvalue())
         demo = {
-            "quota": [], "hit": 40.0, "cache": 40, "uncached": 60, "output": 10,
+            "quota": [{"name": "週額度 / 五小額度", "plan": "plus", "buckets": [
+                {"window": "week", "label": "每週", "remaining": 86, "used": 14, "reset": "11/27 13:34 重置"},
+                {"window": "5h", "label": "五小時", "remaining": 9, "used": 91, "reset": "11/20 18:34 重置"},
+            ]}], "hit": 40.0, "cache": 40, "uncached": 60, "output": 10,
             "models": [{"name": "unsafe<script>", "calls": 1, "hit": 40.0,
                         "zero": 0, "subs": []}], "recent": [], "updated": "12:00"
         }
@@ -113,6 +116,7 @@ class ReviewRegressions(unittest.TestCase):
             buf = io.StringIO()
             with contextlib.redirect_stdout(buf):
                 cd.summary_en(days=7)
+            self.assertIn("== Weekly / 5h quota (plus): weekly remaining 86%", buf.getvalue())
             self.assertIn("Cache hit rate by model", buf.getvalue())
 
     def test_english_html_escapes_user_fields(self):
