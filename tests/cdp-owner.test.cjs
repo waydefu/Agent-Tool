@@ -38,3 +38,13 @@ test('CDP guard rejects unknown apps and invalid ports', () => {
   assert.throws(() => createOwnerGuard('codex', 0), TypeError);
   assert.throws(() => createOwnerGuard('codex', 70000), TypeError);
 });
+test('CDP guard distinguishes transient PowerShell timeout from untrusted listener', () => {
+  const timeoutExec = () => {
+    const err = new Error('timed out');
+    err.code = 'ETIMEDOUT';
+    err.killed = true;
+    throw err;
+  };
+  const verify = createOwnerGuard('antigravity', 9339, timeoutExec);
+  assert.throws(() => verify(), { code: 'CDP_CHECK_TIMEOUT' });
+});
