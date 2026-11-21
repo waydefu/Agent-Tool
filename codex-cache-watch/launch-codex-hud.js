@@ -141,7 +141,8 @@ function isMainPage(t) {
 
 (async () => {
   let up = false;
-  try { await targets(); up = true; } catch (e) {
+  let initialList = [];
+  try { initialList = await targets(); up = true; } catch (e) {
     if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
   }
   if (!up) {
@@ -176,10 +177,14 @@ function isMainPage(t) {
       process.exit(1);
     }
   } else {
-    // 已經以 9340 除錯埠在執行：使用者再點桌面捷徑時，把現有視窗喚醒到最前面
-    try {
-      spawn('explorer.exe', ['shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App'], { detached: true, stdio: 'ignore' }).unref();
-    } catch {}
+    // 已經以 9340 除錯埠在執行：透過 CDP /json/activate 喚醒現有主視窗，避免經由 AppsFolder 重開第二個視窗
+    const main = initialList.find((t) => isMainPage(t) && t.id);
+    if (main) {
+      try {
+        ensureOwner();
+        await fetch(`http://127.0.0.1:${PORT}/json/activate/${encodeURIComponent(main.id)}`);
+      } catch {}
+    }
   }
 
   let misses = 0;
