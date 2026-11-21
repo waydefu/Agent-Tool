@@ -3,13 +3,15 @@
 // DOM 翻譯引擎與 zh-TW 字典注入每個視窗。App 關閉後本程式自動結束。
 // 用法：node launch-zh-tw.js
 const { spawn } = require('child_process');
+const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const { createOwnerGuard } = require('../shared/cdp-owner');
 const { loadLocale, buildPreloadFragment } = require('./src/locale');
 
-const PORT = 9339;
-const ensureOwner = createOwnerGuard('antigravity', PORT);
+const CANDIDATE_PORTS = [9339, 9341, 9342, 9343, 9344, 9345];
+let PORT = CANDIDATE_PORTS[0];
+let ensureOwner = createOwnerGuard('antigravity', PORT);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe');
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
@@ -42,13 +44,42 @@ function cacheData() {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function targets() {
-  const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
+async function targets(port = PORT, guard = ensureOwner) {
+  const res = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) });
   if (!res.ok) { const e = new Error('Unrecognized CDP HTTP endpoint'); e.code = 'UNTRUSTED_CDP'; throw e; }
-  ensureOwner();
+  guard();
   const list = await res.json();
   if (!Array.isArray(list)) { const e = new Error('Invalid CDP target list'); e.code = 'UNTRUSTED_CDP'; throw e; }
   return list;
+}
+
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.once('error', () => resolve(false));
+    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)));
+  });
+}
+
+async function pickPort() {
+  for (const p of CANDIDATE_PORTS) {
+    const g = createOwnerGuard('antigravity', p);
+    try {
+      await targets(p, g);
+      PORT = p;
+      ensureOwner = g;
+      return { up: true };
+    } catch {}
+  }
+  for (const p of CANDIDATE_PORTS) {
+    if (await isPortFree(p)) {
+      PORT = p;
+      ensureOwner = createOwnerGuard('antigravity', p);
+      return { up: false };
+    }
+  }
+  return { up: false };
 }
 
 function isLocalDebugSocket(wsUrl) {
@@ -89,12 +120,9 @@ function inject(target) {
 }
 
 (async () => {
-  let up = false;
-  try { await targets(); up = true; } catch (e) {
-    if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
-  }
+  const { up } = await pickPort();
   if (!up) {
-    log('starting Antigravity with debug port');
+    log(`starting Antigravity with debug port ${PORT}`);
     try {
       const child = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore' });
       child.on('error', (e) => { log('Antigravity launch failed: ' + String(e.code || 'unknown')); process.exit(1); });
