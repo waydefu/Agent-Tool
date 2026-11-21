@@ -121,12 +121,13 @@ function inject(target) {
       if (hud && tick++ % 15 === 0) {
         const json = await cacheData();
         if (json) {
-          ensureOwner(true);
+          ensureOwner();
           for (const t of list) if (done.has(t.id) && isAntigravityPage(t)) await evaluate(t, `window.__agyCacheHud && window.__agyCacheHud(${json})`);
         }
       }
     } catch (e) {
       if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
+      if (e.code === 'CDP_CHECK_TIMEOUT') { log('CDP owner check timed out; retrying'); await sleep(2000); continue; }
       misses += 1;
       // 還沒啟動完成時最多等 3 分鐘；啟動過後連續 20 秒連不上就視為 App 已關閉。
       if ((seen && misses > 10) || (!seen && misses > 90)) { log('exit'); process.exit(0); }

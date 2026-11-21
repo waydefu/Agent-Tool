@@ -203,7 +203,7 @@ function isMainPage(t) {
       if (hud && (newlyInjected || tick++ % 15 === 0)) {
         const json = await cacheData();
         if (json) {
-          ensureOwner(true);
+          ensureOwner();
           for (const t of list) {
             if (done.has(t.id) && isMainPage(t)) {
               await evaluate(t, `window.__codexCacheHud && window.__codexCacheHud(${json})`);
@@ -213,6 +213,7 @@ function isMainPage(t) {
       }
     } catch (e) {
       if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
+      if (e.code === 'CDP_CHECK_TIMEOUT') { log('CDP owner check timed out; retrying'); await sleep(2000); continue; }
       misses += 1;
       if ((seen && misses > 10) || (!seen && misses > 90)) {
         log('exit');

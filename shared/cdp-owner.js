@@ -15,13 +15,16 @@ function createOwnerGuard(app, port, execute = execFileSync, clock = Date.now) {
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
         '-File', path.join(__dirname, 'Verify-CdpOwner.ps1'),
         '-App', app, '-Port', String(port),
-      ], { encoding: 'utf8', timeout: 8000, windowsHide: true, maxBuffer: 16384 });
+      ], { encoding: 'utf8', timeout: 25000, windowsHide: true, maxBuffer: 16384 });
       if (String(output).trim() !== 'AGENT_TOOL_CDP_OWNER_OK') throw new Error('Unexpected verification result');
       checkedAt = clock();
-    } catch {
+    } catch (err) {
       checkedAt = null;
-      const error = new Error('CDP endpoint ownership or loopback binding could not be verified');
-      error.code = 'UNTRUSTED_CDP';
+      const isTimeout = err && (err.code === 'ETIMEDOUT' || err.killed === true);
+      const error = new Error(isTimeout
+        ? 'CDP ownership check timed out (will retry without exiting)'
+        : 'CDP endpoint ownership or loopback binding could not be verified');
+      error.code = isTimeout ? 'CDP_CHECK_TIMEOUT' : 'UNTRUSTED_CDP';
       throw error;
     }
   };
