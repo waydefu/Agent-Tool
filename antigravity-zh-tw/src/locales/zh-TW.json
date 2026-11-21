@@ -1726,6 +1726,12 @@
     "Agent working": "代理運作中",
     "Ran": "已執行",
     "Breadcrumb": "階層導覽",
-    "Undo to this point": "復原至此處"
+    "Undo to this point": "復原至此處",
+    "Orchestrator Settings": "協調者設定",
+    "Choose the models Orchestrator uses. A larger, smarter orchestrator model with a faster, cheaper executor gives high quality for fewer tokens.": "選擇協調者使用的模型。搭配較大、較聰明的協調者模型與較快、較便宜的執行者，能以較少 token 獲得高品質結果。",
+    "Orchestrator Model": "協調者模型",
+    "Plans the work, makes design decisions, and reviews the result. Pick a top-tier model. You can also pick one per conversation from the Orchestrator row in the model menu.": "負責規劃工作、做出設計決策並審查結果。請選擇頂級模型；你也可以在模型選單的「協調者」列，為每個對話個別指定。",
+    "Executor Model": "執行者模型",
+    "Carries out the plan: searches, edits, builds, and tests. Pick a faster, cheaper model.": "負責執行計畫：搜尋、編輯、建置與測試。請選擇較快、較便宜的模型。"
   }
 }
