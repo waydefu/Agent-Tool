@@ -177,6 +177,12 @@
       "sample": "Connected to devbox"
     },
     {
+      "id": "twConversationLabel",
+      "pattern": "^Conversation: (.+)$",
+      "template": "對話：{1}",
+      "sample": "Conversation: Demo"
+    },
+    {
       "id": "thoughtFor",
       "pattern": "^Thought for (\\d+(?:\\.\\d+)?)(s|m|h|ms)$",
       "flags": "i",
@@ -1712,6 +1718,14 @@
     "GitHub Personal Access Token": "GitHub 個人存取權杖 (PAT)",
     "GitHub Policies": "GitHub 原則",
     "GitHub Permissions": "GitHub 權限",
-    "Manage fine-grained permissions for GitHub.": "管理 GitHub 的細部權限。"
+    "Manage fine-grained permissions for GitHub.": "管理 GitHub 的細部權限。",
+    "Edits the conversation title": "編輯對話標題",
+    "Agent said": "代理說",
+    "You said": "你說",
+    "just now": "剛剛",
+    "Agent working": "代理運作中",
+    "Ran": "已執行",
+    "Breadcrumb": "階層導覽",
+    "Undo to this point": "復原至此處"
   }
 }
