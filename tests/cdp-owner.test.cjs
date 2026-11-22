@@ -48,3 +48,19 @@ test('CDP guard distinguishes transient PowerShell timeout from untrusted listen
   const verify = createOwnerGuard('antigravity', 9339, timeoutExec);
   assert.throws(() => verify(), { code: 'CDP_CHECK_TIMEOUT' });
 });
+test('CDP guard honors custom cache TTL to avoid excessive PowerShell checks', () => {
+  let time = 0;
+  let calls = 0;
+  const fakePowerShell = () => {
+    calls += 1;
+    return 'AGENT_TOOL_CDP_OWNER_OK\n';
+  };
+  const verify = createOwnerGuard('antigravity', 9339, fakePowerShell, () => time, 300000);
+  verify();
+  time = 120000;
+  verify();
+  assert.equal(calls, 1);
+  time = 301000;
+  verify();
+  assert.equal(calls, 2);
+});

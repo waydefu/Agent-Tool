@@ -48,6 +48,10 @@
 #codex-cache-hud .fold-hd:hover{color:#fff}
 #codex-cache-hud .fold-bd{padding:3px 0 4px 14px;max-height:140px;overflow:auto;font-size:11px;color:#9a9aa3}
 #codex-cache-hud .fold-bd div{padding:1.5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#codex-cache-hud .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+#codex-cache-hud .box::-webkit-scrollbar,#codex-cache-hud .fold-bd::-webkit-scrollbar{width:5px;height:5px}
+#codex-cache-hud .box::-webkit-scrollbar-thumb,#codex-cache-hud .fold-bd::-webkit-scrollbar-thumb{background:#43434f;border-radius:3px}
+#codex-cache-hud .box::-webkit-scrollbar-track,#codex-cache-hud .fold-bd::-webkit-scrollbar-track{background:transparent}
 `;
 
   const LANG = window.__agentToolLang === 'en' ? 'en' : 'zh-TW';
@@ -100,8 +104,18 @@
     root.id = 'codex-cache-hud';
     root.dataset.gen = GEN;
     root.innerHTML = `<span class="quota"></span><div class="pill">${t('快取', 'Cache')} <b>…</b></div><div class="box">${t('讀取中…', 'Loading…')}</div>`;
+    root.onclick = (e) => e.stopPropagation();
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
+      const collapseEl = e.target.closest('[data-collapse-all]');
+      if (collapseEl) {
+        expanded.clear();
+        openKids.clear();
+        openFolds.clear();
+        openCurKids = false;
+        render();
+        return;
+      }
       const ctxEl = e.target.closest('[data-ctx-id]');
       if (ctxEl) {
         inspectId = ctxEl.getAttribute('data-ctx-id');
@@ -149,6 +163,18 @@
         render();
       }
     };
+    if (typeof document.addEventListener === 'function') {
+      const closeOut = (e) => {
+        if (window.__codexHudGen !== GEN) return document.removeEventListener('click', closeOut);
+        if (root && !root.contains(e.target)) root.classList.remove('open');
+      };
+      const closeEsc = (e) => {
+        if (window.__codexHudGen !== GEN) return document.removeEventListener('keydown', closeEsc);
+        if (e.key === 'Escape' && root) root.classList.remove('open');
+      };
+      document.addEventListener('click', closeOut);
+      document.addEventListener('keydown', closeEsc);
+    }
     document.body.appendChild(root);
     return root;
   }
@@ -382,7 +408,9 @@
         return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
       }).join('') + `</select>`;
       h += renderContextBreakdown(targetCtx);
-      h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;;
+      const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;;
       box.innerHTML = h;
       return;
     }
@@ -421,7 +449,9 @@
         (kidsOpen ? cKids.map((k) => `<div class="row conv" data-conv="${esc(k.id)}" style="padding-left:16px"><span class="muted">└ ${k.id === cur?.id ? '▶ ' : ''}${name(k)}</span><span class="muted">${esc(k.time)}</span><em style="color:${color(k.hit)}">${k.hit}%</em></div>` + (expanded.has(k.id) ? detail(k, true) : '')).join('') : '');
     }).join('');
 
-    h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
+    const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;
     box.innerHTML = h;
   }
 

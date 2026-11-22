@@ -7,7 +7,8 @@ const fs = require('fs');
 const { createOwnerGuard } = require('../shared/cdp-owner');
 
 const PORT = 9340;
-const ensureOwner = createOwnerGuard('codex', PORT);
+const OWNER_TTL_MS = 300000;
+const ensureOwner = createOwnerGuard('codex', PORT, undefined, undefined, OWNER_TTL_MS);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 process.env.AGENT_TOOL_LANG = LANG; // Pass language to the PowerShell restart helper.
 const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
@@ -100,7 +101,7 @@ function cacheData() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function targets() {
-  const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
+  const res = await fetch(`http://127.0.0.1:${PORT}/json/list`, { signal: AbortSignal.timeout(3000) });
   if (!res.ok) { const e = new Error('Unrecognized CDP HTTP endpoint'); e.code = 'UNTRUSTED_CDP'; throw e; }
   ensureOwner();
   const list = await res.json();
@@ -182,7 +183,7 @@ function isMainPage(t) {
     if (main) {
       try {
         ensureOwner();
-        await fetch(`http://127.0.0.1:${PORT}/json/activate/${encodeURIComponent(main.id)}`);
+        await fetch(`http://127.0.0.1:${PORT}/json/activate/${encodeURIComponent(main.id)}`, { signal: AbortSignal.timeout(2500) });
       } catch {}
     }
   }
@@ -198,7 +199,7 @@ function isMainPage(t) {
       let newlyInjected = false;
       for (const t of list) {
         if (!isMainPage(t) || done.has(t.id)) continue;
-        ensureOwner(true);
+        ensureOwner();
         if (await inject(t)) {
           done.add(t.id);
           newlyInjected = true;

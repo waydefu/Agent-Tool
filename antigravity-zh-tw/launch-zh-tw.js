@@ -10,8 +10,9 @@ const { createOwnerGuard } = require('../shared/cdp-owner');
 const { loadLocale, buildPreloadFragment } = require('./src/locale');
 
 const CANDIDATE_PORTS = [9339, 9341, 9342, 9343, 9344, 9345];
+const OWNER_TTL_MS = 300000;
 let PORT = CANDIDATE_PORTS[0];
-let ensureOwner = createOwnerGuard('antigravity', PORT);
+let ensureOwner = createOwnerGuard('antigravity', PORT, undefined, undefined, OWNER_TTL_MS);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe');
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
@@ -64,7 +65,7 @@ function isPortFree(port) {
 
 async function pickPort() {
   for (const p of CANDIDATE_PORTS) {
-    const g = createOwnerGuard('antigravity', p);
+    const g = createOwnerGuard('antigravity', p, undefined, undefined, OWNER_TTL_MS);
     try {
       await targets(p, g);
       PORT = p;
@@ -75,7 +76,7 @@ async function pickPort() {
   for (const p of CANDIDATE_PORTS) {
     if (await isPortFree(p)) {
       PORT = p;
-      ensureOwner = createOwnerGuard('antigravity', p);
+      ensureOwner = createOwnerGuard('antigravity', p, undefined, undefined, OWNER_TTL_MS);
       return { up: false };
     }
   }
@@ -142,7 +143,7 @@ function inject(target) {
       misses = 0;
       for (const t of list) {
         if (done.has(t.id) || !isAntigravityPage(t)) continue;
-        ensureOwner(true);
+        ensureOwner();
         if (await inject(t)) { done.add(t.id); log('injected approved app target'); }
       }
       // 每 30 秒（第一次立即）更新快取命中面板。
