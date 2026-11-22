@@ -3,13 +3,13 @@
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 
-function createOwnerGuard(app, port, execute = execFileSync, clock = Date.now) {
-  if (!['antigravity', 'codex'].includes(app) || !Number.isInteger(port) || port < 1 || port > 65535) {
+function createOwnerGuard(app, port, execute = execFileSync, clock = Date.now, ttlMs = 10000) {
+  if (!['antigravity', 'codex'].includes(app) || !Number.isInteger(port) || port < 1 || port > 65535 || !Number.isFinite(ttlMs) || ttlMs < 0) {
     throw new TypeError('Invalid CDP owner guard configuration');
   }
   let checkedAt = null;
   return function ensureTrustedOwner(force = false) {
-    if (!force && checkedAt !== null && clock() - checkedAt < 10000) return;
+    if (!force && checkedAt !== null && clock() - checkedAt < ttlMs) return;
     try {
       const output = execute('powershell.exe', [
         '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
