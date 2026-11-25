@@ -256,6 +256,8 @@ def titles():
 
 
 def wan(n):
+    if n >= 100000000:
+        return "%.2f億" % (n / 100000000)
     return "%.1f萬" % (n / 10000) if n >= 10000 else "{:,}".format(n)
 
 

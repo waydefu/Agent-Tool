@@ -3,7 +3,7 @@
 (() => {
   const GEN = String(Date.now()); window.__agyHudGen = GEN;
   const css = `
-#agy-cache-hud{position:fixed;top:8px;right:150px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none}
+#agy-cache-hud{position:fixed;top:8px;right:150px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;font-variant-numeric:tabular-nums;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none}
 #agy-cache-hud .quota{font-size:11px;color:#9a9aa3;white-space:nowrap;cursor:default;display:flex;align-items:center;gap:3px}
 #agy-cache-hud .quota b{font-weight:600}#agy-cache-hud .quota svg{display:block}#agy-cache-hud .quota .sep{margin:0 4px;color:#55555c}
 #agy-cache-hud .pill{cursor:pointer;padding:2px 9px;border-radius:11px;background:#2a2a30;border:1px solid #3a3a42;white-space:nowrap}
@@ -19,14 +19,19 @@
 #agy-cache-hud .row{display:grid;grid-template-columns:10px 1fr auto 52px;gap:6px;align-items:center;padding:2.5px 0}
 #agy-cache-hud .row i{width:9px;height:9px;border-radius:2px}#agy-cache-hud .row em{font-style:normal;text-align:right;color:#c9c9cf}
 #agy-cache-hud .row span.dotted{text-decoration:underline dotted #777;text-underline-offset:3px}
+#agy-cache-hud .subrow{display:grid;grid-template-columns:14px 1fr auto 52px;gap:6px;align-items:center;padding:1.5px 0 1.5px 12px;font-size:11.5px;color:#9a9aa3}
+#agy-cache-hud .subrow .tree{color:#5e5e68;font-family:monospace}
+#agy-cache-hud .subrow em{font-style:normal;text-align:right;color:#b4b4bc}
+#agy-cache-hud .badge{display:inline-block;margin-left:5px;padding:0 5px;border-radius:8px;background:#2f2f38;border:1px solid #42424d;color:#a8b3cf;font-size:10.5px;line-height:1.5;cursor:pointer;vertical-align:middle}
+#agy-cache-hud .badge:hover{background:#3a3a46;color:#fff}
 #agy-cache-hud .conv{cursor:pointer;grid-template-columns:1fr auto 52px;border-radius:4px;padding:3px 4px}
 #agy-cache-hud .conv:hover{background:#2c2c33}#agy-cache-hud .conv span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #agy-cache-hud .cur{background:#2a2a31;border:1px solid #34343c;border-radius:8px;padding:8px 10px}
 #agy-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#2b2b31;border-radius:3px;padding:2px;margin:4px 0 6px;overflow:hidden}
 #agy-cache-hud .spark span{flex:1 1 0;min-width:0;border-radius:1px}
 #agy-cache-hud .muted{color:#8b8b94}
-#agy-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 6px;display:inline-block}
-#agy-cache-hud .link:hover{text-decoration:underline}
+#agy-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 4px;padding:2px 7px;background:#1f293a;border:1px solid #2e4369;border-radius:5px;display:inline-block}
+#agy-cache-hud .link:hover{background:#26354d;text-decoration:none}
 #agy-cache-hud .picker{width:100%;margin-bottom:8px;padding:4px 6px;background:#19191d;color:#e6e6e6;border:1px solid #3a3a42;border-radius:6px;font:12px/1.4 system-ui,"Microsoft JhengHei",sans-serif}
 #agy-cache-hud .ctx-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:4px}
 #agy-cache-hud .ctx-head small{font-weight:400;color:#9a9aa3;font-size:12px}
@@ -34,7 +39,11 @@
 #agy-cache-hud .fold-hd{display:flex;justify-content:space-between;align-items:center;padding:4px 2px;cursor:pointer;color:#c9c9cf}
 #agy-cache-hud .fold-hd:hover{color:#fff}
 #agy-cache-hud .fold-bd{padding:3px 0 4px 14px;max-height:140px;overflow:auto;font-size:11px;color:#9a9aa3}
-#agy-cache-hud .fold-bd div{padding:1.5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`;
+#agy-cache-hud .fold-bd div{padding:1.5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#agy-cache-hud .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+#agy-cache-hud .box::-webkit-scrollbar,#agy-cache-hud .fold-bd::-webkit-scrollbar{width:5px;height:5px}
+#agy-cache-hud .box::-webkit-scrollbar-thumb,#agy-cache-hud .fold-bd::-webkit-scrollbar-thumb{background:#43434f;border-radius:3px}
+#agy-cache-hud .box::-webkit-scrollbar-track,#agy-cache-hud .fold-bd::-webkit-scrollbar-track{background:transparent}`;
   const LANG = window.__agentToolLang === 'en' ? 'en' : 'zh-TW';
   const t = (zh, en) => LANG === 'en' ? en : zh;
   const categories = { '訊息': 'Chat messages', '系統工具': 'Built-in tools', 'MCP 工具': 'MCP tools',
@@ -42,7 +51,12 @@
     '使用者規則 (Rules)': 'User rules', '子代理定義 (Subagents)': 'Subagent definitions' };
   const cat = (name) => LANG === 'en' ? (categories[name] || name) : name;
   const color = (h) => (h >= 70 ? '#2f81f7' : h >= 40 ? '#d29922' : '#f85149');
-  const wan = (n) => LANG === 'en' ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n || 0)) : (n >= 10000 ? (n / 10000).toFixed(1) + '萬' : Number(n || 0).toLocaleString());
+  const wan = (n) => {
+    const v = Number(n || 0);
+    if (LANG === 'en') return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v);
+    if (v >= 100000000) return (v / 100000000).toFixed(2) + '億';
+    return v >= 10000 ? (v / 10000).toFixed(1) + '萬' : v.toLocaleString();
+  };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   // 目前對話：對話主畫面的 data-cascade-id → 網址 /c/<id> → 側欄選取列 → 視窗標題開頭的對話名稱比對。
   const selectedId = () => {
@@ -58,7 +72,7 @@
     }
     return '';
   };
-  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set();
+  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set(), openKids = new Set(), openCurKids = false;
 
   function mount() {
     if (root && document.body.contains(root)) return root;
@@ -68,29 +82,54 @@
     st.textContent = css + `#agy-cache-hud:not([data-gen="${GEN}"]){display:none!important}`; document.head.appendChild(st);
     root = document.createElement('div'); root.id = 'agy-cache-hud'; root.dataset.gen = GEN;
     root.innerHTML = `<span class="quota"></span><div class="pill">${t('快取', 'Cache')} <b>…</b></div><div class="box">${t('讀取中…', 'Loading…')}</div>`;
+    root.onclick = (e) => e.stopPropagation();
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
+      const collapseEl = e.target.closest('[data-collapse-all]');
+      if (collapseEl) { expanded.clear(); openKids.clear(); openFolds.clear(); openCurKids = false; render(); return; }
       const ctxEl = e.target.closest('[data-ctx-id]');
       if (ctxEl) { inspectId = ctxEl.getAttribute('data-ctx-id'); activeTab = 'context'; render(); return; }
       const tabEl = e.target.closest('[data-tab]');
       if (tabEl) { activeTab = tabEl.getAttribute('data-tab'); render(); return; }
       const foldEl = e.target.closest('[data-fold]');
       if (foldEl) { const fk = foldEl.getAttribute('data-fold'); openFolds.has(fk) ? openFolds.delete(fk) : openFolds.add(fk); render(); return; }
+      const curKidsEl = e.target.closest('[data-cur-kids]');
+      if (curKidsEl) { openCurKids = !openCurKids; render(); return; }
+      const kidsEl = e.target.closest('[data-kids]');
+      if (kidsEl) { e.stopPropagation(); const kidId = kidsEl.getAttribute('data-kids'); openKids.has(kidId) ? openKids.delete(kidId) : openKids.add(kidId); render(); return; }
       const el = e.target.closest('[data-conv]'); if (!el) return;
       const id = el.getAttribute('data-conv'); expanded.has(id) ? expanded.delete(id) : expanded.add(id); render();
     };
     root.querySelector('.box').onchange = (e) => {
       if (e.target.matches('[data-ctx-picker]')) { inspectId = e.target.value; render(); }
     };
+    if (typeof document.addEventListener === 'function') {
+      const closeOut = (e) => {
+        if (window.__agyHudGen !== GEN) return document.removeEventListener('click', closeOut);
+        if (root && !root.contains(e.target)) root.classList.remove('open');
+      };
+      const closeEsc = (e) => {
+        if (window.__agyHudGen !== GEN) return document.removeEventListener('keydown', closeEsc);
+        if (e.key === 'Escape' && root) root.classList.remove('open');
+      };
+      document.addEventListener('click', closeOut);
+      document.addEventListener('keydown', closeEsc);
+    }
     document.body.appendChild(root);
     return root;
   }
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? t('子代理 ', 'Subagent ') + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c, showCtxLink = false) => `<div class="muted">${t('上下文', 'Context')} ${wan(c.context)} token · ${c.calls.length} ${t('次呼叫', 'calls')} · 0% ${t('命中', 'hits')}: ${c.zero} · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)} · ${t('命中', 'Hit')} ${hit}% · ${t('快取', 'Cache')} ${wan(cr)} · ${t('未命中', 'Uncached')} ${wan(u)} · ${t('輸出', 'Output')} ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
-    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ ${t('查看此對話的上下文結構明細', 'View context breakdown')} (${c.breakdown.used_pct}% · ${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)})</div>` : '');
+  const detail = (c, showCtxLink = false) => {
+    const b = c.breakdown;
+    const ctxText = b
+      ? `${t('上下文', 'Context')} ${wan(b.used)} / ${wan(b.limit)} (${b.used_pct}%)`
+      : `${t('上下文', 'Context')} ${wan(c.context)} token`;
+    return `<div class="muted">${ctxText} · ${c.calls.length} ${t('次呼叫', 'calls')} · <span title="${t('快取讀取為 0 的呼叫次數', 'Calls with 0 cached input')}">0%×${c.zero}</span> · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)}</div><div class="spark">` +
+      c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)} · ${t('命中', 'Hit')} ${hit}% · ${t('快取', 'Cache')} ${wan(cr)} · ${t('未命中', 'Uncached')} ${wan(u)} · ${t('輸出', 'Output')} ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
+      (showCtxLink && b ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ ${t('上下文結構明細', 'View context breakdown')}</div>` : '');
+  };
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
@@ -155,15 +194,18 @@
         return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
       }).join('') + `</select>`;
       h += renderContextBreakdown(targetCtx);
-      h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
+      const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;
       box.innerHTML = h;
       return;
     }
 
     h += `<h4 style="margin-top:0">${detected ? t('目前對話', 'Current conversation') : t('最新對話（自動跟隨最後活躍對話）', 'Latest conversation (auto-follow)')}</h4>`;
     const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
-    h += cur ? `<div class="cur">` + (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
-      head(cur) + ks.map(head).join('') +
+    h += cur ? `<div class="cur">` +
+      (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}<span class="badge" data-cur-kids="1">${openCurKids ? '▾ ' + t('收合子代理', 'Hide subagents') : '▸ ' + t('展開子代理', 'Show subagents')}</span></span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
+      head(cur) + (openCurKids ? ks.map(head).join('') : '') +
       (cur.parent ? `<div class="muted">${t('這是子代理，上層對話：', 'Subagent · parent conversation: ')}${name(d.recent.find((c) => c.id === cur.parent) || { id: cur.parent, title: '' })}</div>` : '') +
       '</div>'
       : `<div class="cur muted">${t('沒有偵測到對話紀錄。', 'No conversation records detected.')}</div>`;
@@ -173,11 +215,25 @@
     h += `<h4>${t('最近 7 天全部：命中', 'Last 7 days · cache hit')} ${d.hit}% (${wan(tot)} token)</h4>`;
     h += '<div class="bar">' + segs.map(([, v, c]) => `<span style="width:${(100 * v / tot).toFixed(2)}%;background:${c}"></span>`).join('') + '</div>';
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
-    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) => `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} ${t('次', 'calls')} · 0% ${m.zero}</span><em>${m.hit}%</em></div>` +
-      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">${t('其中子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0% ${x.zero}</span><em>${x.hit}%</em></div>`).join('')).join('');
-    h += `<h4>${t('各對話（點一下展開，縮排＝子代理）', 'Conversations (select to expand; indented = subagents)')}</h4>` + order.map((c) => `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
-      (expanded.has(c.id) ? detail(c, true) : '')).join('');
-    h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
+    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) => {
+      const subs = m.subs || [];
+      const singleFullSub = subs.length === 1 && subs[0].calls === m.calls;
+      const subBadge = singleFullSub ? ` <span class="badge" style="cursor:default" title="${t('全部呼叫皆來自此子代理', 'All calls from this subagent')}">${t('子代理', 'Sub')} ${esc(subs[0].agent)}</span>` : '';
+      return `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}${subBadge}</span><span class="muted" title="${t('快取讀取為 0 的呼叫次數', 'Calls with 0 cached input')}">${m.calls} ${t('次', 'calls')} · 0%×${m.zero}</span><em>${m.hit}%</em></div>` +
+        (singleFullSub ? '' : subs.map((x, idx, arr) => `<div class="subrow"><span class="tree">${idx === arr.length - 1 ? '└' : '├'}</span><span>${t('子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0%×${x.zero}</span><em>${x.hit}%</em></div>`).join(''));
+    }).join('');
+    const roots = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent));
+    h += `<h4>${t('各對話（點一下展開明細，徽章展開子代理）', 'Conversations (click to expand; badge toggles subagents)')}</h4>` + roots.map((c) => {
+      const cKids = kids(c.id);
+      const kidsOpen = openKids.has(c.id);
+      const badge = cKids.length ? `<span class="badge" data-kids="${esc(c.id)}" title="${t('展開／收合子代理對話', 'Toggle subagent conversations')}">${kidsOpen ? '▾' : '+'}${cKids.length} ${t('子代理', 'sub')}</span>` : '';
+      return `<div class="row conv" data-conv="${esc(c.id)}"><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}${badge}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
+        (expanded.has(c.id) ? detail(c, true) : '') +
+        (kidsOpen ? cKids.map((k) => `<div class="row conv" data-conv="${esc(k.id)}" style="padding-left:16px"><span class="muted">└ ${k.id === cur?.id ? '▶ ' : ''}${name(k)}</span><span class="muted">${esc(k.time)}</span><em style="color:${color(k.hit)}">${k.hit}%</em></div>` + (expanded.has(k.id) ? detail(k, true) : '')).join('') : '');
+    }).join('');
+    const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;
     box.innerHTML = h;
   }
 

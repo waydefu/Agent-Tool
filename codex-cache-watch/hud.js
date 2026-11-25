@@ -5,7 +5,7 @@
   window.__codexHudGen = GEN;
 
   const css = `
-#codex-cache-hud{position:fixed;top:8px;right:148px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none}
+#codex-cache-hud{position:fixed;top:8px;right:148px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;font-variant-numeric:tabular-nums;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none}
 #codex-cache-hud .quota{font-size:11px;color:#9a9aa3;white-space:nowrap;cursor:default;display:flex;align-items:center;gap:4px}
 #codex-cache-hud .quota b{font-weight:600}
 #codex-cache-hud .quota svg{display:block}
@@ -25,6 +25,11 @@
 #codex-cache-hud .row i{width:9px;height:9px;border-radius:2px;display:inline-block}
 #codex-cache-hud .row span.dotted{text-decoration:underline dotted #777;text-underline-offset:3px}
 #codex-cache-hud .row em{font-style:normal;text-align:right;color:#c9c9cf}
+#codex-cache-hud .subrow{display:grid;grid-template-columns:14px 1fr auto 54px;gap:7px;align-items:center;padding:1.5px 0 1.5px 12px;font-size:11.5px;color:#9a9aa3}
+#codex-cache-hud .subrow .tree{color:#5e5e68;font-family:monospace}
+#codex-cache-hud .subrow em{font-style:normal;text-align:right;color:#b4b4bc}
+#codex-cache-hud .badge{display:inline-block;margin-left:5px;padding:0 5px;border-radius:8px;background:#2b2b34;border:1px solid #40404c;color:#a8b3cf;font-size:10.5px;line-height:1.5;cursor:pointer;vertical-align:middle}
+#codex-cache-hud .badge:hover{background:#373743;color:#fff}
 #codex-cache-hud .conv{cursor:pointer;grid-template-columns:1fr auto 52px;border-radius:4px;padding:3px 5px}
 #codex-cache-hud .conv:hover{background:#2c2c33}
 #codex-cache-hud .conv span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -32,8 +37,8 @@
 #codex-cache-hud .spark{display:flex;align-items:flex-end;gap:1px;height:26px;background:#1b1b21;border-radius:3px;padding:2px;margin:4px 0 6px;overflow:hidden}
 #codex-cache-hud .spark span{flex:1 1 0;min-width:0;border-radius:1px}
 #codex-cache-hud .muted{color:#8b8b94}
-#codex-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 6px;display:inline-block}
-#codex-cache-hud .link:hover{text-decoration:underline}
+#codex-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;margin:2px 0 4px;padding:2px 7px;background:#1c2536;border:1px solid #2e4369;border-radius:5px;display:inline-block}
+#codex-cache-hud .link:hover{background:#25334a;text-decoration:none}
 #codex-cache-hud .picker{width:100%;margin-bottom:8px;padding:4px 6px;background:#16161b;color:#e6e6e6;border:1px solid #3a3a42;border-radius:6px;font:12px/1.4 system-ui,"Microsoft JhengHei",sans-serif}
 #codex-cache-hud .ctx-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;font-weight:600;margin-bottom:4px}
 #codex-cache-hud .ctx-head small{font-weight:400;color:#9a9aa3;font-size:12px}
@@ -43,6 +48,10 @@
 #codex-cache-hud .fold-hd:hover{color:#fff}
 #codex-cache-hud .fold-bd{padding:3px 0 4px 14px;max-height:140px;overflow:auto;font-size:11px;color:#9a9aa3}
 #codex-cache-hud .fold-bd div{padding:1.5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#codex-cache-hud .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+#codex-cache-hud .box::-webkit-scrollbar,#codex-cache-hud .fold-bd::-webkit-scrollbar{width:5px;height:5px}
+#codex-cache-hud .box::-webkit-scrollbar-thumb,#codex-cache-hud .fold-bd::-webkit-scrollbar-thumb{background:#43434f;border-radius:3px}
+#codex-cache-hud .box::-webkit-scrollbar-track,#codex-cache-hud .fold-bd::-webkit-scrollbar-track{background:transparent}
 `;
 
   const LANG = window.__agentToolLang === 'en' ? 'en' : 'zh-TW';
@@ -54,7 +63,12 @@
   const listLabel = (name) => LANG === 'en' ? String(name).replaceAll('（延遲載入）', ' (deferred)').replaceAll('（主控代理）', ' (primary agent)') : name;
   const color = (h) => (h >= 70 ? '#2f81f7' : h >= 40 ? '#d29922' : '#f85149');
   const qcolor = (p) => (p >= 50 ? '#5a9a4a' : p >= 20 ? '#d29922' : '#f85149');
-  const wan = (n) => LANG === 'en' ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n || 0)) : (n >= 10000 ? (n / 10000).toFixed(1) + '萬' : Number(n || 0).toLocaleString());
+  const wan = (n) => {
+    const v = Number(n || 0);
+    if (LANG === 'en') return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(v);
+    if (v >= 100000000) return (v / 100000000).toFixed(2) + '億';
+    return v >= 10000 ? (v / 10000).toFixed(1) + '萬' : v.toLocaleString();
+  };
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // 自動偵測目前開著的對話 ID（支援網址 /threads/<id>、/c/<id>、側欄選取列、或依標題比對）
@@ -75,7 +89,7 @@
     return '';
   }
 
-  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set();
+  let root, data = null, shown = '', activeTab = 'cache', inspectId = '', expanded = new Set(), openFolds = new Set(), openKids = new Set(), openCurKids = false;
 
   function mount() {
     if (root && document.body && document.body.contains(root)) return root;
@@ -90,8 +104,18 @@
     root.id = 'codex-cache-hud';
     root.dataset.gen = GEN;
     root.innerHTML = `<span class="quota"></span><div class="pill">${t('快取', 'Cache')} <b>…</b></div><div class="box">${t('讀取中…', 'Loading…')}</div>`;
+    root.onclick = (e) => e.stopPropagation();
     root.querySelector('.pill').onclick = () => root.classList.toggle('open');
     root.querySelector('.box').onclick = (e) => {
+      const collapseEl = e.target.closest('[data-collapse-all]');
+      if (collapseEl) {
+        expanded.clear();
+        openKids.clear();
+        openFolds.clear();
+        openCurKids = false;
+        render();
+        return;
+      }
       const ctxEl = e.target.closest('[data-ctx-id]');
       if (ctxEl) {
         inspectId = ctxEl.getAttribute('data-ctx-id');
@@ -112,6 +136,20 @@
         render();
         return;
       }
+      const curKidsEl = e.target.closest('[data-cur-kids]');
+      if (curKidsEl) {
+        openCurKids = !openCurKids;
+        render();
+        return;
+      }
+      const kidsEl = e.target.closest('[data-kids]');
+      if (kidsEl) {
+        e.stopPropagation();
+        const kidId = kidsEl.getAttribute('data-kids');
+        openKids.has(kidId) ? openKids.delete(kidId) : openKids.add(kidId);
+        render();
+        return;
+      }
       const convEl = e.target.closest('[data-conv]');
       if (convEl) {
         const cid = convEl.getAttribute('data-conv');
@@ -125,6 +163,18 @@
         render();
       }
     };
+    if (typeof document.addEventListener === 'function') {
+      const closeOut = (e) => {
+        if (window.__codexHudGen !== GEN) return document.removeEventListener('click', closeOut);
+        if (root && !root.contains(e.target)) root.classList.remove('open');
+      };
+      const closeEsc = (e) => {
+        if (window.__codexHudGen !== GEN) return document.removeEventListener('keydown', closeEsc);
+        if (e.key === 'Escape' && root) root.classList.remove('open');
+      };
+      document.addEventListener('click', closeOut);
+      document.addEventListener('keydown', closeEsc);
+    }
     document.body.appendChild(root);
     return root;
   }
@@ -265,9 +315,15 @@
 
   const rate = (u, c) => (u + c ? Math.round(1000 * c / (u + c)) / 10 : 0);
   const name = (c) => esc(c.agent ? t('子代理 ', 'Subagent ') + c.agent + (c.title ? '・' + c.title : '') : c.title || c.id.slice(0, 8));
-  const detail = (c, showCtxLink = false) => `<div class="muted">${c.estimated ? t('［推估］', '[Estimated] ') : ''}${t('上下文', 'Context')} ${wan(c.context)} token · ${c.calls.length} ${t('次呼叫', 'calls')} · 0% ${t('命中', 'hits')}: ${c.zero} · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)}</div><div class="spark">` +
-    c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)} · ${t('命中', 'Hit')} ${hit}% · ${t('快取', 'Cached')} ${wan(cr)} · ${t('未命中', 'Uncached')} ${wan(u)} · ${t('輸出', 'Output')} ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
-    (showCtxLink && c.breakdown ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ ${t('查看此對話的上下文結構明細', 'View context breakdown')} (${c.breakdown.used_pct}% · ${wan(c.breakdown.used)} / ${wan(c.breakdown.limit)})</div>` : '');
+  const detail = (c, showCtxLink = false) => {
+    const b = c.breakdown;
+    const ctxText = b
+      ? `${t('上下文', 'Context')} ${wan(b.used)} / ${wan(b.limit)} (${b.used_pct}%)`
+      : `${t('上下文', 'Context')} ${wan(c.context)} token`;
+    return `<div class="muted">${c.estimated ? t('［推估］', '[Estimated] ') : ''}${ctxText} · ${c.calls.length} ${t('次呼叫', 'calls')} · <span title="${t('快取讀取為 0 的呼叫次數', 'Calls with 0 cached input')}">0%×${c.zero}</span> · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)}</div><div class="spark">` +
+      c.calls.slice(-80).map(([hit, m, u, cr, o]) => `<span title="${esc(m)} · ${t('命中', 'Hit')} ${hit}% · ${t('快取', 'Cached')} ${wan(cr)} · ${t('未命中', 'Uncached')} ${wan(u)} · ${t('輸出', 'Output')} ${wan(o)}" style="height:${Math.max(hit, 4)}%;background:${hit === 0 ? '#f85149' : color(hit)}"></span>`).join('') + '</div>' +
+      (showCtxLink && b ? `<div class="link" data-ctx-id="${esc(c.id)}">▸ ${t('上下文結構明細', 'View context breakdown')}</div>` : '');
+  };
 
   function renderContextBreakdown(c) {
     const b = c?.breakdown;
@@ -352,7 +408,9 @@
         return `<option value="${esc(c.id)}"${c.id === targetCtx?.id ? ' selected' : ''}>${prefix}${name(c)}${pctStr}</option>`;
       }).join('') + `</select>`;
       h += renderContextBreakdown(targetCtx);
-      h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;;
+      const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;;
       box.innerHTML = h;
       return;
     }
@@ -361,9 +419,9 @@
     const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${name(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c, true)}`;
     h += cur
       ? `<div class="cur">` +
-        (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}</span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
+        (ks.length ? `<div class="row" style="grid-template-columns:1fr 52px"><span>${t('合計（主對話＋', 'Total (main + ')}${ks.length} ${t('個子代理）', 'subagents)')}<span class="badge" data-cur-kids="1">${openCurKids ? '▾ ' + t('收合子代理', 'Hide subagents') : '▸ ' + t('展開子代理', 'Show subagents')}</span></span><em style="color:${color(pillHit)}"><b>${pillHit}%</b></em></div>` : '') +
         head(cur) +
-        ks.map(head).join('') +
+        (openCurKids ? ks.map(head).join('') : '') +
         `</div>`
       : `<div class="cur muted">${t('沒有偵測到對話。', 'No conversation detected.')}</div>`;
 
@@ -373,17 +431,27 @@
     h += '<div class="bar">' + segs.map(([, v, c]) => `<span style="width:${(100 * v / tot).toFixed(2)}%;background:${c}"></span>`).join('') + '</div>';
     h += segs.map(([k, v, c]) => `<div class="row"><i style="background:${c}"></i><span>${k}</span><span>${wan(v)}</span><em>${(100 * v / tot).toFixed(1)}%</em></div>`).join('');
 
-    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) =>
-      `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}</span><span class="muted">${m.calls} ${t('次', 'calls')} · 0% ${m.zero}</span><em>${m.hit}%</em></div>` +
-      (m.subs || []).map((x) => `<div class="row" style="padding-left:16px"><i style="background:${color(x.hit)};border-radius:50%"></i><span class="muted">${t('其中子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0% ${x.zero}</span><em>${x.hit}%</em></div>`).join('')
-    ).join('');
+    h += `<h4>${t('各模型', 'By model')}</h4>` + d.models.map((m) => {
+      const subs = m.subs || [];
+      const singleFullSub = subs.length === 1 && subs[0].calls === m.calls;
+      const subBadge = singleFullSub ? ` <span class="badge" style="cursor:default" title="${t('全部呼叫皆來自此子代理', 'All calls from this subagent')}">${t('子代理', 'Sub')} ${esc(subs[0].agent)}</span>` : '';
+      return `<div class="row"><i style="background:${color(m.hit)}"></i><span>${esc(m.name)}${subBadge}</span><span class="muted" title="${t('快取讀取為 0 的呼叫次數', 'Calls with 0 cached input')}">${m.calls} ${t('次', 'calls')} · 0%×${m.zero}</span><em>${m.hit}%</em></div>` +
+        (singleFullSub ? '' : subs.map((x, idx, arr) => `<div class="subrow"><span class="tree">${idx === arr.length - 1 ? '└' : '├'}</span><span>${t('子代理', 'Subagent')} ${esc(x.agent)}</span><span class="muted">${x.calls} ${t('次', 'calls')} · 0%×${x.zero}</span><em>${x.hit}%</em></div>`).join(''));
+    }).join('');
 
-    h += `<h4>${t('各對話（點一下展開，縮排＝子代理）', 'Conversations (select to expand; indented = subagents)')}</h4>` + order.map((c) =>
-      `<div class="row conv" data-conv="${esc(c.id)}"${c.parent ? ' style="padding-left:18px"' : ''}><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
-      (expanded.has(c.id) ? detail(c, true) : '')
-    ).join('');
+    const roots = d.recent.filter((c) => !c.parent || !d.recent.some((p) => p.id === c.parent));
+    h += `<h4>${t('各對話（點一下展開明細，徽章展開子代理）', 'Conversations (click to expand; badge toggles subagents)')}</h4>` + roots.map((c) => {
+      const cKids = kids(c.id);
+      const kidsOpen = openKids.has(c.id);
+      const badge = cKids.length ? `<span class="badge" data-kids="${esc(c.id)}" title="${t('展開／收合子代理對話', 'Toggle subagent conversations')}">${kidsOpen ? '▾' : '+'}${cKids.length} ${t('子代理', 'sub')}</span>` : '';
+      return `<div class="row conv" data-conv="${esc(c.id)}"><span>${c.id === cur?.id ? '▶ ' : ''}${name(c)}${badge}</span><span class="muted">${esc(c.time)}</span><em style="color:${color(c.hit)}">${c.hit}%</em></div>` +
+        (expanded.has(c.id) ? detail(c, true) : '') +
+        (kidsOpen ? cKids.map((k) => `<div class="row conv" data-conv="${esc(k.id)}" style="padding-left:16px"><span class="muted">└ ${k.id === cur?.id ? '▶ ' : ''}${name(k)}</span><span class="muted">${esc(k.time)}</span><em style="color:${color(k.hit)}">${k.hit}%</em></div>` + (expanded.has(k.id) ? detail(k, true) : '')).join('') : '');
+    }).join('');
 
-    h += `<div class="muted" style="margin-top:8px">${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</div>`;
+    const hasExpanded = expanded.size > 0 || openKids.size > 0 || openCurKids;
+    h += `<div class="foot muted"><span>${t('更新', 'Updated')} ${esc(d.updated)} · ${t('每 30 秒自動更新', 'refreshes every 30 seconds')}</span>` +
+      (hasExpanded ? `<span class="link" style="margin:0" data-collapse-all="1">${t('收合全部', 'Collapse all')}</span>` : '') + `</div>`;
     box.innerHTML = h;
   }
 

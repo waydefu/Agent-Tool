@@ -7,7 +7,8 @@ const fs = require('fs');
 const { createOwnerGuard } = require('../shared/cdp-owner');
 
 const PORT = 9340;
-const ensureOwner = createOwnerGuard('codex', PORT);
+const OWNER_TTL_MS = 300000;
+const ensureOwner = createOwnerGuard('codex', PORT, undefined, undefined, OWNER_TTL_MS);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 process.env.AGENT_TOOL_LANG = LANG; // Pass language to the PowerShell restart helper.
 const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
@@ -100,7 +101,7 @@ function cacheData() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function targets() {
-  const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
+  const res = await fetch(`http://127.0.0.1:${PORT}/json/list`, { signal: AbortSignal.timeout(3000) });
   if (!res.ok) { const e = new Error('Unrecognized CDP HTTP endpoint'); e.code = 'UNTRUSTED_CDP'; throw e; }
   ensureOwner();
   const list = await res.json();
@@ -141,7 +142,8 @@ function isMainPage(t) {
 
 (async () => {
   let up = false;
-  try { await targets(); up = true; } catch (e) {
+  let initialList = [];
+  try { initialList = await targets(); up = true; } catch (e) {
     if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
   }
   if (!up) {
@@ -176,10 +178,14 @@ function isMainPage(t) {
       process.exit(1);
     }
   } else {
-    // 已經以 9340 除錯埠在執行：使用者再點桌面捷徑時，把現有視窗喚醒到最前面
-    try {
-      spawn('explorer.exe', ['shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App'], { detached: true, stdio: 'ignore' }).unref();
-    } catch {}
+    // 已經以 9340 除錯埠在執行：透過 CDP /json/activate 喚醒現有主視窗，避免經由 AppsFolder 重開第二個視窗
+    const main = initialList.find((t) => isMainPage(t) && t.id);
+    if (main) {
+      try {
+        ensureOwner();
+        await fetch(`http://127.0.0.1:${PORT}/json/activate/${encodeURIComponent(main.id)}`, { signal: AbortSignal.timeout(2500) });
+      } catch {}
+    }
   }
 
   let misses = 0;
@@ -193,7 +199,7 @@ function isMainPage(t) {
       let newlyInjected = false;
       for (const t of list) {
         if (!isMainPage(t) || done.has(t.id)) continue;
-        ensureOwner(true);
+        ensureOwner();
         if (await inject(t)) {
           done.add(t.id);
           newlyInjected = true;
@@ -203,7 +209,7 @@ function isMainPage(t) {
       if (hud && (newlyInjected || tick++ % 15 === 0)) {
         const json = await cacheData();
         if (json) {
-          ensureOwner(true);
+          ensureOwner();
           for (const t of list) {
             if (done.has(t.id) && isMainPage(t)) {
               await evaluate(t, `window.__codexCacheHud && window.__codexCacheHud(${json})`);
@@ -213,6 +219,7 @@ function isMainPage(t) {
       }
     } catch (e) {
       if (e.code === 'UNTRUSTED_CDP') { log('refused untrusted CDP listener'); process.exit(1); }
+      if (e.code === 'CDP_CHECK_TIMEOUT') { log('CDP owner check timed out; retrying'); await sleep(2000); continue; }
       misses += 1;
       if ((seen && misses > 10) || (!seen && misses > 90)) {
         log('exit');
