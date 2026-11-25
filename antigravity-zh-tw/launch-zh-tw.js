@@ -7,6 +7,7 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 const { createOwnerGuard } = require('../shared/cdp-owner');
+const { PYTHON, appArgs } = require('../shared/app-launch');
 const { loadLocale, buildPreloadFragment } = require('./src/locale');
 
 const CANDIDATE_PORTS = [9339, 9341, 9342, 9343, 9344, 9345];
@@ -14,7 +15,9 @@ const OWNER_TTL_MS = 300000;
 let PORT = CANDIDATE_PORTS[0];
 let ensureOwner = createOwnerGuard('antigravity', PORT, undefined, undefined, OWNER_TTL_MS);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
-const EXE = path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe');
+const EXE = process.platform === 'win32'
+  ? path.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'Antigravity.exe')
+  : process.env.AGENT_TOOL_ANTIGRAVITY_EXE || 'antigravity';
 const LOG = path.join(__dirname, 'launch-zh-tw.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
 
@@ -39,7 +42,7 @@ function evaluate(target, expression) {
 
 function cacheData() {
   return new Promise((resolve) => {
-    require('child_process').execFile('python', ['-I', path.join(CACHE_DIR, 'agy_cache.py'), '--json'],
+    require('child_process').execFile(PYTHON, ['-I', path.join(CACHE_DIR, 'agy_cache.py'), '--json'],
       { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
@@ -125,7 +128,7 @@ function inject(target) {
   if (!up) {
     log(`starting Antigravity with debug port ${PORT}`);
     try {
-      const child = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore' });
+      const child = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1', ...appArgs()], { detached: true, stdio: 'ignore' });
       child.on('error', (e) => { log('Antigravity launch failed: ' + String(e.code || 'unknown')); process.exit(1); });
       child.unref();
     } catch (e) {

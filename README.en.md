@@ -26,6 +26,21 @@ Use **Code → Codespaces** for a Linux environment with Python, Node.js, `rg`, 
 
 No third-party Python packages are required by the usage parsers. Do not run these launchers on an untrusted shared machine: the debugging connection can be accessed by other local processes.
 
+## Linux desktop (experimental)
+
+Both launchers also run on Linux (tested on Ubuntu 24.04 arm64 under PRoot) and inject the same UI and HUDs. Requires Node.js 22+ and `python3`.
+
+```bash
+# Antigravity (point at wherever the official tar.gz was unpacked); arguments after `--` go to the app
+AGENT_TOOL_ANTIGRAVITY_EXE=/opt/antigravity-hub/antigravity node antigravity-zh-tw/launch-zh-tw.js -- --user-data-dir="$HOME/.config/antigravity-hub-data"
+# ChatGPT / Codex (the official .deb installs /usr/bin/chatgpt)
+node codex-cache-watch/launch-codex-hud.js
+```
+
+- Running as root adds `--no-sandbox` automatically (Electron requires it).
+- CDP owner check: on Linux it matches the app main process's own arguments (`--remote-debugging-port` and `--remote-debugging-address=127.0.0.1`). This is weaker than the Windows socket-owner check; the limit is documented in `shared/cdp-owner.js`.
+- If ChatGPT is already running without the debug port, the launcher only asks you to close it and start again; there is no Linux equivalent of `SafeClose-Codex.ps1`.
+
 ## Choose your language
 
 | Experience | Traditional Chinese | English |

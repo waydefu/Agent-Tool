@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 新增 Linux 桌面版（實驗性）：兩個啟動器依平台選擇 App 路徑（`AGENT_TOOL_ANTIGRAVITY_EXE`／`AGENT_TOOL_CHATGPT_EXE`）、`python3`、root 時的 `--no-sandbox` 與 `--` 之後的 App 參數；`shared/cdp-owner.js` 新增 Linux 主行程參數比對（可讀取 Chromium 改寫過的行程標題）。Linux 不提供 SafeClose。
 - 修正 Codex／ChatGPT 桌面版額度顯示不準確的問題：
   - `codex-cache-watch/hud.js` 優先從 ChatGPT 視窗的即时 React Fiber／使用額度按鈕讀取伺服器最新推送的 5 小時與每週剩餘額度（並每 15 秒自動同步），排除 `avatar-overlay` 浮動視窗。
   - `codex-cache-watch/codex_cache.py` 改用事件本身的 ISO 時間戳（或 `resets_at`）而非檔案 `mtime` 挑選最新額度紀錄，並將已過重置時間（`resets_at <= now`）的舊視窗標為 `100%（已重置）`。
