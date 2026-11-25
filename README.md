@@ -26,6 +26,21 @@
 
 **驗證狀態：** 自動化測試和 Windows 桌面實機驗收是不同層級。請先參閱 [測試範圍](docs/TESTING.md) 與 [安全稽核](docs/SECURITY_AUDIT.md)；在完成實機驗收之前，不宣稱全面相容或正式穩定。
 
+## Linux 桌面版（實驗性）
+
+兩個啟動器也能在 Linux 上執行（已在 Ubuntu 24.04 arm64 PRoot 上實測），注入的繁中介面與面板和 Windows 版相同。需要 Node.js 22 以上與 `python3`。
+
+```bash
+# Antigravity（官方 tar.gz 解壓位置自行指定）；`--` 之後的參數原樣傳給 App
+AGENT_TOOL_ANTIGRAVITY_EXE=/opt/antigravity-hub/antigravity node antigravity-zh-tw/launch-zh-tw.js -- --user-data-dir="$HOME/.config/antigravity-hub-data"
+# ChatGPT / Codex（官方 .deb 預設 /usr/bin/chatgpt）
+node codex-cache-watch/launch-codex-hud.js
+```
+
+- 以 root 執行時會自動加 `--no-sandbox`（Electron 的要求）。
+- 除錯埠擁有者檢查：Linux 改為比對 App 主行程的啟動參數（`--remote-debugging-port` 與 `--remote-debugging-address=127.0.0.1`），比 Windows 版的 socket 擁有者檢查弱，限制寫在 `shared/cdp-owner.js`。
+- ChatGPT 已在沒有除錯埠的狀態下執行時，只會提示你先關閉再重開；Linux 沒有 `SafeClose-Codex.ps1` 的自動關閉。
+
 ## 社群協作與安全
 
 英文使用者請參閱 [English README](README.en.md)、[English Security](SECURITY.en.md) 與 [English Contributing](CONTRIBUTING.en.md)。

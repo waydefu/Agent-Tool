@@ -4,14 +4,16 @@
 const { spawn, execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { createOwnerGuard } = require('../shared/cdp-owner');
+const { createOwnerGuard, procArgvs } = require('../shared/cdp-owner');
+const { PYTHON, appArgs } = require('../shared/app-launch');
 
 const PORT = 9340;
 const OWNER_TTL_MS = 300000;
 const ensureOwner = createOwnerGuard('codex', PORT, undefined, undefined, OWNER_TTL_MS);
 const LANG = process.argv.includes('--lang=en') || process.env.AGENT_TOOL_LANG === 'en' ? 'en' : 'zh-TW';
 process.env.AGENT_TOOL_LANG = LANG; // Pass language to the PowerShell restart helper.
-const ALIAS = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe');
+const IS_WIN = process.platform === 'win32';
+const ALIAS = IS_WIN ? path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe') : '';
 const LOG = path.join(__dirname, 'launch-codex-hud.log');
 const log = (m) => { try { fs.appendFileSync(LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} };
 
@@ -20,6 +22,7 @@ const PY = path.join(__dirname, 'codex_cache.py');
 const hud = `window.__agentToolLang = ${JSON.stringify(LANG)};\n` + (fs.existsSync(HUD) ? fs.readFileSync(HUD, 'utf8') : '');
 
 function resolveExe() {
+  if (!IS_WIN) return process.env.AGENT_TOOL_CHATGPT_EXE || '/usr/bin/chatgpt';
   // Windows Store AppExecutionAlias (chatgpt-desktop.exe) 是特殊的 reparse point：
   // fs.existsSync 會回傳 false，必須用 fs.lstatSync 檢查，且不能直接 spawn WindowsApps 內的 ChatGPT.exe（會被 Windows 拒絕存取 EACCES）。
   try { fs.lstatSync(ALIAS); return ALIAS; } catch {}
@@ -32,6 +35,9 @@ function resolveExe() {
 }
 
 function isChatGptRunning() {
+  if (!IS_WIN) {
+    return procArgvs().some((a) => path.basename(a[0] || '') === 'ChatGPT' && !a.some((x) => x.startsWith('--type=')));
+  }
   try {
     const out = execFileSync('tasklist', ['/FI', 'IMAGENAME eq ChatGPT.exe', '/NH'], { encoding: 'utf8', windowsHide: true });
     return /ChatGPT\.exe/i.test(out);
@@ -41,6 +47,14 @@ function isChatGptRunning() {
 }
 
 function bringExistingToFrontAndWarn() {
+  if (!IS_WIN) {
+    // Linux 沒有 SafeClose：不替使用者關閉 ChatGPT，只提示先自行關閉再重開。
+    const msg = LANG === 'en'
+      ? 'ChatGPT / Codex is already running without debugging port 9340, so the usage HUD cannot attach. Close ChatGPT, then start it again from this launcher.'
+      : 'ChatGPT / Codex 已經在執行，但沒有開啟除錯埠 9340，面板無法掛上。請先關閉 ChatGPT，再從這個捷徑重新開啟。';
+    try { execFileSync('zenity', ['--info', '--no-wrap', '--title=ChatGPT / Codex HUD', `--text=${msg}`]); } catch {}
+    return false;
+  }
   // 若舊的 ChatGPT 已經在沒有除錯埠（9340）的狀態下執行，先把視窗喚醒到最前面，並彈出提示詢問是否自動安全重啟以掛載面板。
   const ps = LANG === 'en' ? `
 Add-Type -AssemblyName System.Windows.Forms
@@ -94,7 +108,7 @@ function evaluate(target, expression) {
 
 function cacheData() {
   return new Promise((resolve) => {
-    require('child_process').execFile('python', ['-I', PY, '--json'],
+    require('child_process').execFile(PYTHON, ['-I', PY, '--json'],
       { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
@@ -170,7 +184,7 @@ function isMainPage(t) {
     const exe = resolveExe();
     log(`starting ChatGPT/Codex with local debug port ${PORT}`);
     try {
-      const child = spawn(exe, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1'], { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(exe, [`--remote-debugging-port=${PORT}`, '--remote-debugging-address=127.0.0.1', ...appArgs()], { detached: true, stdio: 'ignore', windowsHide: false });
       child.on('error', (err) => log(`spawn error: ${err.message}`));
       child.unref();
     } catch (err) {
