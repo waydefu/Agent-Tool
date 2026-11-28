@@ -69,6 +69,8 @@ const MAIN = ['/opt/antigravity-hub/antigravity', '--no-sandbox', '--remote-debu
 test('Linux check accepts only the app main process started with the loopback debug flags', () => {
   assert.equal(linuxOwnerOk('antigravity', 9339, [MAIN]), true);
   assert.equal(linuxOwnerOk('codex', 9340, [['/usr/lib/chatgpt/ChatGPT', '--remote-debugging-port=9340', '--remote-debugging-address=127.0.0.1']]), true);
+  assert.equal(linuxOwnerOk('hermes', 9346, [['/usr/local/lib/hermes-agent/apps/desktop/release/linux-arm64-unpacked/Hermes', '--remote-debugging-port=9346', '--remote-debugging-address=127.0.0.1']]), true);
+  assert.equal(linuxOwnerOk('hermes', 9346, [['/tmp/Hermes', '--remote-debugging-port=9346']]), false);
   assert.equal(linuxOwnerOk('antigravity', 9341, [MAIN]), false);
   assert.equal(linuxOwnerOk('codex', 9339, [MAIN]), false);
   assert.equal(linuxOwnerOk('antigravity', 9339, [[...MAIN, '--type=renderer']]), false);

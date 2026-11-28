@@ -20,6 +20,7 @@ def module_from(path, name):
 
 ag = module_from("agy-cache-watch/agy_cache.py", "agy_cache")
 cd = module_from("codex-cache-watch/codex_cache.py", "codex_cache")
+hm = module_from("hermes-cache-watch/hermes_cache.py", "hermes_cache")
 
 
 class UsageContractTests(unittest.TestCase):
@@ -85,6 +86,34 @@ class UsageContractTests(unittest.TestCase):
                 self.assertEqual(by_id["estimated"]["breakdown"]["source"], "sqlite_estimate")
             finally:
                 cd.CODEX_DIR, cd.STATE_DB, cd.HIST_DB, cd.SESS_DIRS = original
+
+
+    def test_hermes_cache_reads_sessions_excludes_hidden_and_filters_days(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "hermes #1.db"
+            now = time.time()
+            old = now - 20 * 86400
+            with closing(sqlite3.connect(db)) as con:
+                con.execute("""CREATE TABLE sessions (
+                    id TEXT PRIMARY KEY, title TEXT, model TEXT, parent_session_id TEXT,
+                    started_at REAL NOT NULL, last_activity_at REAL,
+                    api_call_count INTEGER DEFAULT 0, input_tokens INTEGER DEFAULT 0,
+                    output_tokens INTEGER DEFAULT 0, cache_read_tokens INTEGER DEFAULT 0,
+                    hidden INTEGER DEFAULT 0
+                )""")
+                con.execute("INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                            ("h1", "Active", "gpt-5.4", "", now - 60, now, 4, 200, 50, 800, 0))
+                con.execute("INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                            ("h2", "Old", "gpt-5.4", "", old, old, 2, 100, 10, 0, 0))
+                con.execute("INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                            ("h3", "Hidden", "gpt-5.4", "", now, now, 3, 500, 10, 0, 1))
+                con.commit()
+            d = hm.build_json(days=7, db_path=str(db), quota=[{"name": "GPT", "buckets": []}])
+            self.assertEqual(d["uncached"], 200)
+            self.assertEqual(d["cache"], 800)
+            self.assertEqual(d["hit"], 80.0)
+            self.assertEqual([c["id"] for c in d["recent"]], ["h1"])
+            self.assertEqual(d["quota"][0]["name"], "GPT")
 
 
 if __name__ == "__main__":

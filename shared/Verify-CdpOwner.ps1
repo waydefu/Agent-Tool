@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('antigravity', 'codex')]
+    [ValidateSet('antigravity', 'codex', 'hermes')]
     [string]$App,
     [Parameter(Mandatory = $true)]
     [ValidateRange(1, 65535)]
@@ -29,6 +29,12 @@ if ($App -eq 'antigravity') {
     $expected = Join-Path $env:LOCALAPPDATA 'Programs\antigravity\Antigravity.exe'
     if (-not [string]::Equals($exe, $expected, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'CDP listener does not belong to the expected Antigravity executable.'
+    }
+} elseif ($App -eq 'hermes') {
+    if (-not $env:LOCALAPPDATA) { throw 'LOCALAPPDATA is unavailable.' }
+    $expectedHermes = Join-Path $env:LOCALAPPDATA 'Programs\Hermes\Hermes.exe'
+    if (-not [string]::Equals($exe, $expectedHermes, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'CDP listener does not belong to the expected Hermes executable.'
     }
 } else {
     $storeExe = '^[A-Za-z]:\\Program Files\\WindowsApps\\OpenAI\.Codex_[^\\]+\\(?:app\\)?ChatGPT\.exe$'

@@ -24,6 +24,7 @@ function loadChecks(file, port, functionNames) {
 
 const ag = loadChecks('antigravity-zh-tw/launch-zh-tw.js', 9339, ['isLocalDebugSocket', 'isAntigravityPage']);
 const cd = loadChecks('codex-cache-watch/launch-codex-hud.js', 9340, ['isMainPage']);
+const hm = loadChecks('hermes-cache-watch/launch-hermes-hud.js', 9346, ['isMainPage']);
 
 function tab(url, port, ws = '127.0.0.1', title = 'App') {
   return { type: 'page', url, title, webSocketDebuggerUrl: 'ws://' + ws + ':' + port + '/devtools/page/1' };
@@ -60,4 +61,10 @@ test('unrelated files, webviews, and malformed CDP WebSocket paths are rejected'
   assert.equal(cd.isMainPage(tab('file:///C:/Program%20Files/WindowsApps/OpenAI.Codex_2.0.0_x64__id/app/index.html', 9340)), true);
   assert.equal(ag.isAntigravityPage({...tab('app://antigravity/', 9339), webSocketDebuggerUrl: 'ws://127.0.0.1:9339/untrusted'}), false);
   assert.equal(cd.isMainPage({...tab('https://chatgpt.com/', 9340), webSocketDebuggerUrl: 'ws://127.0.0.1:9340/other'}), false);
+  assert.equal(hm.isMainPage(tab('file:///usr/local/lib/hermes-agent/apps/desktop/release/linux-arm64-unpacked/resources/app.asar.unpacked/dist/index.html', 9346)), true);
+  assert.equal(hm.isMainPage(tab('http://127.0.0.1:43111/', 9346)), true);
+  assert.equal(hm.isMainPage(tab('hermes://main/', 9346)), true);
+  assert.equal(hm.isMainPage(tab('https://evil.invalid/', 9346)), false);
+  assert.equal(hm.isMainPage(tab('file:///tmp/unrelated/index.html', 9346)), false);
+  assert.equal(hm.isMainPage({...tab('hermes://main/', 9346), webSocketDebuggerUrl: 'ws://evil.invalid:9346/devtools/page/1'}), false);
 });

@@ -24,10 +24,11 @@ jobs:
           node-version: '22'
       - name: Python 語法與單元測試
         run: |
-          python -m compileall -q agy-cache-watch codex-cache-watch tests
+          python -m compileall -q agy-cache-watch codex-cache-watch hermes-cache-watch tests
           python -m unittest discover -s tests -p "test_*.py" -v
           python -I agy-cache-watch/agy_cache.py --selftest
           python -I codex-cache-watch/codex_cache.py --selftest
+          python -I hermes-cache-watch/hermes_cache.py --selftest
       - name: Dev Container 安裝腳本語法檢查
         run: bash -n .devcontainer/setup-tools.sh
       - name: JavaScript 語法與注入目標測試
@@ -38,6 +39,8 @@ jobs:
           node --check agy-cache-watch/hud.js
           node --check codex-cache-watch/hud.js
           node --check codex-cache-watch/launch-codex-hud.js
+          node --check hermes-cache-watch/hud.js
+          node --check hermes-cache-watch/launch-hermes-hud.js
           node --test
           node -e "require('./antigravity-zh-tw/src/locale').loadLocale('zh-TW')"
 
@@ -61,6 +64,8 @@ jobs:
           python -I agy-cache-watch/agy_cache.py --selftest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -I codex-cache-watch/codex_cache.py --selftest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I hermes-cache-watch/hermes_cache.py --selftest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

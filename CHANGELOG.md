@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- 新增 `hermes-cache-watch`：以本機回環除錯埠（`127.0.0.1:9346`）啟動 Hermes Desktop 並注入右上角 HUD，顯示 GPT／Codex 每週與五小時額度圓環及 Hermes（`~/.hermes/state.db`）對話快取命中率與各模型統計；`shared/cdp-owner.js` 與 `shared/Verify-CdpOwner.ps1` 同步支援 `hermes`。
 - 新增 Linux 桌面版（實驗性）：兩個啟動器依平台選擇 App 路徑（`AGENT_TOOL_ANTIGRAVITY_EXE`／`AGENT_TOOL_CHATGPT_EXE`）、`python3`、root 時的 `--no-sandbox` 與 `--` 之後的 App 參數；`shared/cdp-owner.js` 新增 Linux 主行程參數比對（可讀取 Chromium 改寫過的行程標題）。Linux 不提供 SafeClose。
 - 修正 Codex／ChatGPT 桌面版額度顯示不準確的問題：
   - `codex-cache-watch/hud.js` 優先從 ChatGPT 視窗的即时 React Fiber／使用額度按鈕讀取伺服器最新推送的 5 小時與每週剩餘額度（並每 15 秒自動同步），排除 `avatar-overlay` 浮動視窗。
