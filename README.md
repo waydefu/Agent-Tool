@@ -11,6 +11,7 @@
 | [Antigravity 繁中啟動器](./antigravity-zh-tw/) | 啟動 Antigravity 時套用繁體中文介面 |
 | [Antigravity 用量面板](./agy-cache-watch/) | 查看快取命中率、模型額度與上下文結構 |
 | [ChatGPT／Codex 用量面板](./codex-cache-watch/) | 查看快取命中率、五小時與每週額度，以及上下文結構 |
+| [Hermes 用量面板](./hermes-cache-watch/) | 查看 Hermes 快取命中率及 Codex 五小時／每週額度 |
 
 ## GitHub 雲端開發環境
 
@@ -40,6 +41,10 @@ node codex-cache-watch/launch-codex-hud.js
 - 以 root 執行時會自動加 `--no-sandbox`（Electron 的要求）。
 - 除錯埠擁有者檢查：Linux 改為比對 App 主行程的啟動參數（`--remote-debugging-port` 與 `--remote-debugging-address=127.0.0.1`），比 Windows 版的 socket 擁有者檢查弱，限制寫在 `shared/cdp-owner.js`。
 - ChatGPT 已在沒有除錯埠的狀態下執行時，只會提示你先關閉再重開；Linux 沒有 `SafeClose-Codex.ps1` 的自動關閉。
+
+## Hermes 用量面板
+
+執行 `node hermes-cache-watch/launch-hermes-hud.js`。Hermes 快取統計約每 30 秒更新；Codex 額度透過 `codex app-server` 的 `account/rateLimits/read` 約每 60 秒查詢，查完即結束查詢行程。需要已安裝且登入的 Codex；Linux 優先使用 `/usr/lib/chatgpt/resources/codex`，否則使用 PATH 中的 `codex`（Windows 使用 `codex.exe`）。額度查詢明確停用名為 `hybrid2` 的 MCP 伺服器；若查詢失敗會標示「過期」或「不可用」並延後重試，不以重置時間推測 100%。Windows 尚未實機驗證。
 
 ## 社群協作與安全
 

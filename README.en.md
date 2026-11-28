@@ -11,6 +11,7 @@
 | [Antigravity Traditional Chinese launcher](antigravity-zh-tw/) | Applies a zh-TW translation at launch, without modifying the installed app |
 | [Antigravity usage HUD](agy-cache-watch/) | Shows model quota, input-cache hit rate, recent model activity and context categories |
 | [ChatGPT / Codex usage HUD](codex-cache-watch/) | Shows 5-hour and weekly limits, cache statistics, conversations and estimated context categories |
+| [Hermes usage HUD](hermes-cache-watch/) | Shows Hermes cache statistics and Codex 5-hour / weekly limits |
 
 **Not an official product of Google or OpenAI.** These are **source scripts**, not an installer. Desktop-app internals can change without notice. Compatibility has not been certified on a real Windows desktop: CI validates source code and synthetic tests, not end-to-end operation.
 
@@ -75,6 +76,8 @@ Run the command from the corresponding directory, **not both in the same directo
 **Antigravity dashboard:** data is read from `~/.gemini/antigravity*/conversations/*.db`, with conversation titles and agent relationships from local summaries. Its model-quota rings query the desktop app's local `RetrieveUserQuotaSummary` RPC. Context breakdown data is decoded from `gen_metadata` field `1.9.10`, an **undocumented internal protobuf format**. Versions other than the documented Antigravity App 2.33 may differ. The HUD refreshes quota approximately every 20 seconds and usage statistics approximately every 30 seconds.
 
 **ChatGPT / Codex dashboard:** token records come from `~/.codex/sessions/**/rollout-*.jsonl`; thread metadata comes from `state_5.sqlite` and `thread_history_1.sqlite`. Five-hour and weekly remaining limits are taken from the latest locally observed `rate_limits` data; they may be stale if the app has not refreshed them. Only the **40 most recently updated threads** in the selected period are scanned for on-screen statistics, so aggregated totals are not necessarily complete across a busy account. For conversations with rollout logs, call-level input, cached input and output are measured. **Context category totals still use approximate character-to-token conversion.** When only historical SQLite information exists, call counts and cache metrics are estimates, marked as such and excluded from overall/model measured totals.
+
+**Hermes dashboard:** run `node hermes-cache-watch/launch-hermes-hud.js`. Hermes cache statistics refresh about every 30 seconds. Codex limits are fetched using `codex app-server` and `account/rateLimits/read` approximately every 60 seconds; the query process exits after each request. Codex must be installed and signed in. Linux prefers `/usr/lib/chatgpt/resources/codex`, otherwise the launcher uses `codex` on PATH (`codex.exe` on Windows). The query disables the MCP server named `hybrid2`. Failure marks the last result stale or unavailable and retries with backoff; it does not infer 100% from an expired reset. Windows has not been tested on a real desktop.
 
 ### Terminal mode
 

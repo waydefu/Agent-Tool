@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { createOwnerGuard, procArgvs } = require('../shared/cdp-owner');
 const { PYTHON, appArgs } = require('../shared/app-launch');
+const { queryQuota, createQuotaPoller } = require('./live-quota');
 
 const PORT = 9346;
 const OWNER_TTL_MS = 300000;
@@ -60,7 +61,7 @@ function evaluate(target, expression) {
 
 function cacheData() {
   return new Promise((resolve) => {
-    require('child_process').execFile(PYTHON, ['-I', PY, '--json'],
+    require('child_process').execFile(PYTHON, ['-I', PY, '--json', '--no-codex-quota'],
       { timeout: 20000, maxBuffer: 8 * 1024 * 1024, windowsHide: true }, (err, out) => resolve(err ? null : out.trim()));
   });
 }
@@ -139,6 +140,9 @@ function isMainPage(t) {
   let misses = 0;
   let seen = false;
   let tick = 0;
+  let lastCache = null, lastQuota = null;
+  const codex = !IS_WIN && fs.existsSync('/usr/lib/chatgpt/resources/codex') ? '/usr/lib/chatgpt/resources/codex' : (IS_WIN ? 'codex.exe' : 'codex');
+  const quotaPoller = createQuotaPoller(() => queryQuota(codex));
   for (;;) {
     try {
       const list = await targets();
@@ -154,14 +158,23 @@ function isMainPage(t) {
           log('injected approved Hermes target');
         }
       }
+      const quota = await quotaPoller.refresh();
+      const quotaChanged = quota !== lastQuota;
+      if (quotaChanged && quota.quotaStatus !== 'fresh') log('Codex quota unavailable; check Codex installation and sign-in; retry scheduled');
+      lastQuota = quota;
+      let cacheUpdated = false;
       if (hud && (newlyInjected || tick++ % 15 === 0)) {
         const json = await cacheData();
         if (json) {
-          ensureOwner();
-          for (const t of list) {
-            if (done.has(t.id) && isMainPage(t)) {
-              await evaluate(t, `window.__hermesCacheHud && window.__hermesCacheHud(${json})`);
-            }
+          try { lastCache = JSON.parse(json); cacheUpdated = true; } catch { log('invalid Hermes cache data'); }
+        } else log('Hermes cache data unavailable');
+      }
+      if (lastCache && (quotaChanged || newlyInjected || cacheUpdated)) {
+        ensureOwner();
+        const json = JSON.stringify({ ...lastCache, ...quota });
+        for (const t of list) {
+          if (done.has(t.id) && isMainPage(t)) {
+            await evaluate(t, `window.__hermesCacheHud && window.__hermesCacheHud(${json})`);
           }
         }
       }

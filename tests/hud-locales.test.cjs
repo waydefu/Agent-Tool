@@ -240,5 +240,9 @@ test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and 
       assert.match(quota.innerHTML, /<span>GPT Quota<\/span>/);
       assert.match(box.innerHTML, /Hermes 30-day cache hit/);
     }
+    window.__hermesCacheHud({ hit: 0, cache: 0, uncached: 0, output: 0, updated: '12:00:00', quotaStatus: 'stale', quotaUpdated: '11:59:00', quota: [{ name: '週額度 / 五小額度', buckets: [{ window: 'week', remaining: 90, used: 10, reset: '' }] }], models: [], recent: [] });
+    assert.match(quota.innerHTML, lang === 'en' ? /stale/i : /過期/);
+    window.__hermesCacheHud({ quotaStatus: 'unavailable', quota: [], models: [], recent: [] });
+    assert.match(quota.textContent, lang === 'en' ? /unavailable/i : /不可用/);
   }
 });

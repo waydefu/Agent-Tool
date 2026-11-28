@@ -240,10 +240,11 @@ if __name__ == "__main__":
     p.add_argument("--json", action="store_true")
     p.add_argument("--en", action="store_true")
     p.add_argument("--selftest", action="store_true")
+    p.add_argument("--no-codex-quota", action="store_true")
     a = p.parse_args()
     if a.selftest:
         selftest()
     elif a.json:
-        print(json.dumps(build_json(a.days), ensure_ascii=False))
+        print(json.dumps(build_json(a.days, quota=[] if a.no_codex_quota else None), ensure_ascii=False))
     else:
         summary(a.days, en=a.en)

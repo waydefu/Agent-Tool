@@ -136,7 +136,7 @@
     const q = r.querySelector('.quota');
     const groups = data?.quota || [];
     if (!groups.length) {
-      q.textContent = t('GPT 週 / 五小額度', 'GPT Weekly / 5h');
+      q.textContent = data?.quotaStatus === 'unavailable' ? t('GPT 額度不可用', 'GPT quota unavailable') : t('GPT 週 / 五小額度', 'GPT Weekly / 5h');
       return;
     }
     q.innerHTML = groups.map((g) => {
@@ -152,7 +152,7 @@
         const winLabel = b.window === '5h' ? t('五小額度（5 小時）', '5-hour') : b.window === 'week' ? t('週額度（每週）', 'Weekly') : t(b.label, b.label);
         return ring(p, `${winLabel} ${t('限額剩餘', 'remaining')} ${p}% (${t('已用', 'used')} ${b.used}%)${rstText ? ', ' + rstText : ''}`);
       }).join('');
-    }).join('<span class="sep">｜</span>');
+    }).join('<span class="sep">｜</span>') + (data?.quotaStatus === 'stale' ? `<span title="${esc(t('上次成功更新：', 'Last successful update: ') + (data.quotaUpdated || ''))}">${t('過期', 'Stale')}</span>` : '');
   }
 
   const convName = (c) => esc(c.parent ? t('子代理 ', 'Subagent ') + (c.title || c.id.slice(0, 8)) : c.title || c.id.slice(0, 8));

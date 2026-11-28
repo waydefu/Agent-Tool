@@ -1,6 +1,9 @@
 """以合成資料測試核心契約，不讀取任何真實工作階段。"""
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 import sqlite3
 from contextlib import closing
 import tempfile
@@ -87,6 +90,24 @@ class UsageContractTests(unittest.TestCase):
             finally:
                 cd.CODEX_DIR, cd.STATE_DB, cd.HIST_DB, cd.SESS_DIRS = original
 
+
+    def test_hermes_json_can_skip_codex_session_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            hermes = root / 'hermes-cache-watch'
+            codex = root / 'codex-cache-watch'
+            hermes.mkdir()
+            codex.mkdir()
+            (hermes / 'hermes_cache.py').write_text((ROOT / 'hermes-cache-watch/hermes_cache.py').read_text(encoding='utf-8'), encoding='utf-8')
+            marker = root / 'codex-imported'
+            (codex / 'codex_cache.py').write_text('from pathlib import Path\nPath(' + repr(str(marker)) + ').touch()\n', encoding='utf-8')
+            env = dict(os.environ, HOME=tmp, USERPROFILE=tmp)
+            cmd = [sys.executable, '-I', str(hermes / 'hermes_cache.py'), '--json']
+            result = subprocess.run(cmd + ['--no-codex-quota'], env=env, capture_output=True, text=True, check=True)
+            self.assertEqual(json.loads(result.stdout)['quota'], [])
+            self.assertFalse(marker.exists())
+            subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
+            self.assertTrue(marker.exists())
 
     def test_hermes_cache_reads_sessions_excludes_hidden_and_filters_days(self):
         with tempfile.TemporaryDirectory() as tmp:
