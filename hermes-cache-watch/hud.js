@@ -5,7 +5,7 @@
   window.__hermesHudGen = GEN;
 
   const css = `
-#hermes-cache-hud{position:fixed;top:8px;right:148px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;font-variant-numeric:tabular-nums;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none}
+#hermes-cache-hud{position:fixed;top:calc(var(--titlebar-height,34px) + 4px);right:12px;z-index:2147483000;font:12px/1.45 system-ui,"Microsoft JhengHei",sans-serif;font-variant-numeric:tabular-nums;color:#e6e6e6;-webkit-app-region:no-drag;display:flex;align-items:center;gap:8px;user-select:none;padding:2px 8px;border-radius:13px;background:rgba(30,30,36,.88);border:1px solid #2d2d35}
 #hermes-cache-hud .quota{font-size:11px;color:#9a9aa3;white-space:nowrap;cursor:default;display:flex;align-items:center;gap:4px}
 #hermes-cache-hud .quota b{font-weight:600}
 #hermes-cache-hud .quota svg{display:block}
