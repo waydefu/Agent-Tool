@@ -31,6 +31,9 @@
 #hermes-cache-hud .link{color:#79b8ff;cursor:pointer;font-size:11.5px;padding:2px 7px;background:#1c2536;border:1px solid #2e4369;border-radius:5px;display:inline-block}
 #hermes-cache-hud .link:hover{background:#25334a}
 #hermes-cache-hud .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+#hermes-cache-hud .tabs{display:flex;gap:6px;margin-bottom:8px}
+#hermes-cache-hud .tab{cursor:pointer;padding:3px 7px;border:1px solid #40404c;border-radius:6px;background:#26262e;color:#bcbcc7}
+#hermes-cache-hud .tab.active{color:#fff;border-color:#6688bb}
 #hermes-cache-hud .box::-webkit-scrollbar{width:5px;height:5px}
 #hermes-cache-hud .box::-webkit-scrollbar-thumb{background:#43434f;border-radius:3px}
 #hermes-cache-hud .box::-webkit-scrollbar-track{background:transparent}
@@ -70,6 +73,7 @@
   }
 
   let root, data = null, shown = '', expanded = new Set(), openKids = new Set(), openCurKids = false;
+  let activeTab = 'cache', contextKey = '', contextData = null, contextStatus = 'unavailable';
 
   function mount() {
     if (root && document.body && document.body.contains(root)) return root;
@@ -85,8 +89,20 @@
     root.dataset.gen = GEN;
     root.innerHTML = `<span class="quota"></span><div class="pill">${t('快取', 'Cache')} <b>…</b></div><div class="box">${t('讀取中…', 'Loading…')}</div>`;
     root.onclick = (e) => e.stopPropagation();
-    root.querySelector('.pill').onclick = () => root.classList.toggle('open');
+    root.querySelector('.pill').onclick = () => {
+      root.classList.toggle('open');
+      contextKey = '';
+      if (root.classList.contains('open') && activeTab === 'context') refreshContext();
+    };
     root.querySelector('.box').onclick = (e) => {
+      const tab = e.target.closest('[data-tab]');
+      if (tab) {
+        activeTab = tab.getAttribute('data-tab') === 'context' ? 'context' : 'cache';
+        contextKey = '';
+        if (activeTab === 'context') refreshContext();
+        render();
+        return;
+      }
       if (e.target.closest('[data-collapse-all]')) {
         expanded.clear();
         openKids.clear();
@@ -155,6 +171,56 @@
     }).join('<span class="sep">｜</span>') + (data?.quotaStatus === 'stale' ? `<span title="${esc(t('上次成功更新：', 'Last successful update: ') + (data.quotaUpdated || ''))}">${t('過期', 'Stale')}</span>` : '');
   }
 
+  function refreshContext() {
+    const bridge = window.__hermesHudContext;
+    let state;
+    try { state = bridge?.state(); } catch { state = null; }
+    const key = state ? `${state.session}:${state.eligible}:${state.busy}` : 'missing';
+    if (key === contextKey) return;
+    contextKey = key;
+    contextData = null;
+    if (!state?.eligible) contextStatus = 'unavailable';
+    else if (state.busy) contextStatus = 'busy';
+    else {
+      contextStatus = 'loading';
+      Promise.resolve().then(() => bridge.read()).then(result => {
+        if (contextKey !== key || activeTab !== 'context' || !root?.classList.contains('open')) return;
+        contextData = result;
+        contextStatus = 'ready';
+        render();
+      }).catch(() => {
+        if (contextKey !== key || activeTab !== 'context' || !root?.classList.contains('open')) return;
+        contextStatus = 'unavailable';
+        render();
+      });
+    }
+  }
+
+  function contextDetails() {
+    if (contextStatus !== 'ready') {
+      const message = contextStatus === 'loading' ? t('讀取中…', 'Loading…') : contextStatus === 'busy'
+        ? t('回覆進行中；完成後更新。', 'Updates after the current response.')
+        : t('上下文資料不可用，請確認外掛與目前對話。', 'Context unavailable; check the plugin and focused conversation.');
+      return `<div class="cur muted">${message}</div>`;
+    }
+    const d = contextData;
+    const labels = {
+      system_prompt: t('系統提示', 'System prompt'), tool_definitions: t('系統工具', 'Built-in tools'),
+      rules: t('專案規則', 'Project rules'), skills: t('技能索引', 'Skills index'),
+      mcp: t('MCP 工具', 'MCP tools'), subagent_definitions: t('子代理工具', 'Subagent tools'),
+      memory: t('記憶', 'Memory'), conversation: t('對話內容', 'Conversation')
+    };
+    const used = d.context_used === null ? '—' : (d.context_estimated ? '~' : '') + wan(d.context_used);
+    const limit = d.context_max > 0 ? wan(d.context_max) : '—';
+    const percent = d.context_used !== null && d.context_max > 0 ? Math.min(100, Math.round(100 * d.context_used / d.context_max)) + '%' : '—';
+    return `<h4>${t('目前對話上下文', 'Current conversation context')}</h4>` +
+      `<div class="cur">${t('已使用', 'Used')} ${used} / ${limit} (${percent})` +
+      (d.context_used !== null && d.context_max > 0 ? ` · ${t('可用空間', 'Available')} ${d.context_estimated ? '~' : ''}${wan(Math.max(0, d.context_max - d.context_used))}` : '') + `</div>` +
+      `<p class="muted">${t('分類為估算值；~ 表示總量亦含估算。', 'Categories are estimates; ~ indicates estimated total.')}</p>` +
+      (d.categories.length ? d.categories.map(c => `<div class="row"><i></i><span>${esc(labels[c.id])}</span><span>~${wan(c.tokens)}</span><em></em></div>`).join('') :
+        `<div class="muted">${t('沒有可用的分類資料。', 'No category data available.')}</div>`);
+  }
+
   const convName = (c) => esc(c.parent ? t('子代理 ', 'Subagent ') + (c.title || c.id.slice(0, 8)) : c.title || c.id.slice(0, 8));
   const detail = (c) => `<div class="muted">${c.calls} ${t('次呼叫', 'calls')} · ${t('快取讀取', 'Cached input')} ${wan(c.cache)} · ${t('未命中', 'Uncached')} ${wan(c.uncached)} · ${t('輸出', 'Output')} ${wan(c.output)}</div>`;
 
@@ -163,9 +229,11 @@
     if (!r) return;
     renderQuota();
     const d = data, pill = r.querySelector('.pill b'), box = r.querySelector('.box');
+    const tabs = `<div class="tabs"><button type="button" class="tab ${activeTab === 'cache' ? 'active' : ''}" data-tab="cache">${t('快取與各模型', 'Cache & models')}</button>` +
+      `<button type="button" class="tab ${activeTab === 'context' ? 'active' : ''}" data-tab="context">${t('上下文結構', 'Context breakdown')}</button></div>`;
     if (!d || ((!d.models || !d.models.length) && (!d.recent || !d.recent.length))) {
       pill.textContent = t('無資料', 'No data');
-      box.innerHTML = `<span class="muted">${t('目前沒有 Hermes 對話用量紀錄。', 'No Hermes conversation usage records available.')}</span>`;
+      box.innerHTML = tabs + (activeTab === 'context' ? contextDetails() : `<span class="muted">${t('目前沒有 Hermes 對話用量紀錄。', 'No Hermes conversation usage records available.')}</span>`);
       return;
     }
     const sel = selectedId();
@@ -183,7 +251,11 @@
       ? `${isDetected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')} (${cur.title}) ${t('快取命中率', 'cache hit rate')} ${pillHit}%`
       : t('Hermes 快取命中率', 'Hermes cache hit rate');
 
-    let h = `<h4 style="margin-top:2px">${isDetected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')}</h4>`;
+    if (activeTab === 'context') {
+      box.innerHTML = tabs + contextDetails();
+      return;
+    }
+    let h = tabs + `<h4 style="margin-top:2px">${isDetected ? t('目前對話', 'Current conversation') : t('最新對話', 'Latest conversation')}</h4>`;
     const head = (c) => `<div class="row" style="grid-template-columns:1fr 52px"><b>${convName(c)}</b><em style="color:${color(c.hit)}">${c.hit}%</em></div>${detail(c)}`;
     h += cur
       ? `<div class="cur">` +
@@ -228,6 +300,11 @@
   const timer = setInterval(() => {
     if (window.__hermesHudGen !== GEN) return clearInterval(timer);
     tick = (tick + 1) % 15;
+    if (activeTab === 'context' && root?.classList.contains('open')) {
+      const previous = contextKey;
+      refreshContext();
+      if (contextKey !== previous) render();
+    }
     if (data && selectedId() !== shown) render();
     else if (tick === 0) renderQuota();
   }, 1000);

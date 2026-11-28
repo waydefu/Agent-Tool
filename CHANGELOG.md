@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- Hermes HUD 新增上下文結構分頁，搭配獨立桌面外掛按需讀取 Hermes 的估算分類與上下文用量；回覆中不查詢，連線歸屬不明時不顯示可能屬於其他對話的數字。
+
 - Hermes HUD 額度改為使用 Codex `app-server` 的 `account/rateLimits/read` 查詢，約每 60 秒啟動一次短暫查詢；需已安裝且登入 Codex。Linux 優先使用 `/usr/lib/chatgpt/resources/codex`，其他情況使用 PATH 中的 `codex`（Windows 為 `codex.exe`）。查詢程序明確停用名為 `hybrid2` 的 MCP 伺服器；查詢失敗保留上次結果並標示過期，退避後重試，不推測重置後額度。Windows 尚未實機驗證。
 
 - 新增 `hermes-cache-watch`：以本機回環除錯埠（`127.0.0.1:9346`）啟動 Hermes Desktop 並注入右上角 HUD，顯示 GPT／Codex 每週與五小時額度圓環及 Hermes（`~/.hermes/state.db`）對話快取命中率與各模型統計；`shared/cdp-owner.js` 與 `shared/Verify-CdpOwner.ps1` 同步支援 `hermes`。

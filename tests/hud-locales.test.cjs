@@ -188,7 +188,7 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
   assert.match(quota.innerHTML, /週額度（每週） 限額剩餘 86% \(已用 14%\).*五小額度（5 小時） 限額剩餘 9% \(已用 91%\)/);
 });
 
-test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and en', () => {
+test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and en', async () => {
   for (const lang of ['zh-TW', 'en']) {
     const box = { innerHTML: '', onclick: null, onchange: null };
     const pill = { textContent: '', style: {}, title: '', onclick: null };
@@ -196,7 +196,7 @@ test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and 
     const quota = { innerHTML: '', textContent: '', title: '' };
     const root = {
       dataset: {}, id: '', innerHTML: '',
-      classList: { toggle() {} },
+      classList: { toggle() {}, contains() { return true; } },
       querySelector(selector) {
         if (selector === '.box') return box;
         if (selector === '.pill') return pill;
@@ -211,11 +211,15 @@ test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and 
       createElement: (tag) => tag === 'div' ? root : { textContent: '', id: '' },
       getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
     };
-    const window = { __agentToolLang: lang };
+    let contextRequests = 0, contextBusy = false, onTick;
+    const window = { __agentToolLang: lang, __hermesHudContext: {
+      state: () => ({ session: 's-main', eligible: true, busy: contextBusy }),
+      read: async () => { contextRequests++; return { context_used: 60, context_max: 100, context_estimated: true, categories: [{ id: 'conversation', tokens: 30 }] }; }
+    } };
     const context = {
       document, window, URL, Date, Intl, Set, String, Number, Math,
       location: { href: 'file:///app/index.html', pathname: '/app/index.html', search: '', hash: '' },
-      setInterval: () => 0, clearInterval: () => {},
+      setInterval: fn => { onTick = fn; return 0; }, clearInterval: () => {},
       setTimeout: () => 0, addEventListener: () => {},
     };
     vm.runInNewContext(fs.readFileSync('hermes-cache-watch/hud.js', 'utf8'), context, { filename: 'hermes-cache-watch/hud.js', timeout: 1000 });
@@ -232,6 +236,7 @@ test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and 
       recent: [{ id: 's-main', title: 'Main <script>', parent: '', agent: '', time: '11-28 12:00', calls: 4, hit: 80, uncached: 200, cache: 800, output: 50 }],
     });
     assert.equal(pillCount.textContent, '80%');
+    assert.match(box.innerHTML, lang === 'en' ? /Context breakdown/ : /上下文結構/);
     assert.doesNotMatch(box.innerHTML, /<script>/);
     if (lang === 'zh-TW') {
       assert.match(quota.innerHTML, /<span>GPT 額度<\/span>/);
@@ -240,9 +245,32 @@ test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and 
       assert.match(quota.innerHTML, /<span>GPT Quota<\/span>/);
       assert.match(box.innerHTML, /Hermes 30-day cache hit/);
     }
+    assert.equal(contextRequests, 0, 'context is not read before opening the tab');
+    box.onclick({ target: { closest: selector => selector === '[data-tab]' ? { getAttribute: () => 'context' } : null } });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(contextRequests, 1);
+    assert.match(box.innerHTML, /~60 \/ 100 \(60%\)/);
+    assert.match(box.innerHTML, lang === 'en' ? /Available.*40/ : /可用空間.*40/);
+    assert.match(box.innerHTML, lang === 'en' ? /Conversation/ : /對話內容/);
+    contextBusy = true;
+    onTick();
+    assert.equal(contextRequests, 1, 'no request while busy');
+    assert.match(box.innerHTML, lang === 'en' ? /after the current response/ : /回覆進行中/);
+    contextBusy = false;
+    onTick();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(contextRequests, 2, 'refresh once when the turn finishes');
+    onTick();
+    assert.equal(contextRequests, 2, 'do not poll an unchanged session');
+    const state = window.__hermesHudContext.state;
+    window.__hermesHudContext.state = () => { throw new Error('bridge unavailable'); };
+    assert.doesNotThrow(() => onTick(), 'bridge failure must not break HUD refresh');
+    window.__hermesHudContext.state = state;
+    box.onclick({ target: { closest: selector => selector === '[data-tab]' ? { getAttribute: () => 'cache' } : null } });
     window.__hermesCacheHud({ hit: 0, cache: 0, uncached: 0, output: 0, updated: '12:00:00', quotaStatus: 'stale', quotaUpdated: '11:59:00', quota: [{ name: '週額度 / 五小額度', buckets: [{ window: 'week', remaining: 90, used: 10, reset: '' }] }], models: [], recent: [] });
     assert.match(quota.innerHTML, lang === 'en' ? /stale/i : /過期/);
     window.__hermesCacheHud({ quotaStatus: 'unavailable', quota: [], models: [], recent: [] });
     assert.match(quota.textContent, lang === 'en' ? /unavailable/i : /不可用/);
+    assert.match(box.innerHTML, lang === 'en' ? /Context breakdown/ : /上下文結構/, 'context tab remains available with no cache data');
   }
 });

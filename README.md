@@ -46,6 +46,8 @@ node codex-cache-watch/launch-codex-hud.js
 
 執行 `node hermes-cache-watch/launch-hermes-hud.js`。Hermes 快取統計約每 30 秒更新；Codex 額度透過 `codex app-server` 的 `account/rateLimits/read` 約每 60 秒查詢，查完即結束查詢行程。需要已安裝且登入的 Codex；Linux 優先使用 `/usr/lib/chatgpt/resources/codex`，否則使用 PATH 中的 `codex`（Windows 使用 `codex.exe`）。額度查詢明確停用名為 `hybrid2` 的 MCP 伺服器；若查詢失敗會標示「過期」或「不可用」並延後重試，不以重置時間推測 100%。Windows 尚未實機驗證。
 
+「上下文結構」分頁需要將 `hermes-cache-watch/desktop-plugin/plugin.js` 安裝到作用中 Hermes 主目錄的 `desktop-plugins/hermes-hud-context/plugin.js`。外掛沿用 Hermes 的 `session.context_breakdown`，僅在展開該分頁且對話閒置時查詢；切換對話或完成回覆後再更新。分類值是估算，總量若含估算則以 `~` 標示；不顯示提示內容、檔案路徑或逐次呼叫圖表。無法辨認目前對話所屬連線時顯示不可用，不跨連線猜測。
+
 ## 社群協作與安全
 
 英文使用者請參閱 [English README](README.en.md)、[English Security](SECURITY.en.md) 與 [English Contributing](CONTRIBUTING.en.md)。

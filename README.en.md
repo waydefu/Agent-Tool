@@ -79,6 +79,8 @@ Run the command from the corresponding directory, **not both in the same directo
 
 **Hermes dashboard:** run `node hermes-cache-watch/launch-hermes-hud.js`. Hermes cache statistics refresh about every 30 seconds. Codex limits are fetched using `codex app-server` and `account/rateLimits/read` approximately every 60 seconds; the query process exits after each request. Codex must be installed and signed in. Linux prefers `/usr/lib/chatgpt/resources/codex`, otherwise the launcher uses `codex` on PATH (`codex.exe` on Windows). The query disables the MCP server named `hybrid2`. Failure marks the last result stale or unavailable and retries with backoff; it does not infer 100% from an expired reset. Windows has not been tested on a real desktop.
 
+For the context breakdown tab, install `hermes-cache-watch/desktop-plugin/plugin.js` as `desktop-plugins/hermes-hud-context/plugin.js` under the active Hermes home. It uses Hermes `session.context_breakdown` only when the tab is open and the focused conversation is idle; it refreshes on session changes or turn completion. Categories are estimates and `~` marks estimated totals. It does not expose prompt text, file paths, or a per-call chart; ambiguous session routing fails closed.
+
 ### Terminal mode
 
 From `agy-cache-watch/`:
