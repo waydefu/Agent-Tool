@@ -42,6 +42,12 @@ try {
     $global:AgentToolFakeProcess.ExecutablePath = 'C:\Users\synthetic\AppData\Local\Programs\antigravity\Antigravity.exe'
     Assert-Owner 'Trusted Antigravity executable' 'antigravity' $true
 
+    $global:AgentToolFakeProcess.ExecutablePath = 'C:\Users\synthetic\AppData\Local\Programs\Hermes\Hermes.exe'
+    Assert-Owner 'Trusted Hermes executable' 'hermes' $true
+
+    $global:AgentToolFakeProcess.ExecutablePath = 'C:\Users\synthetic\Downloads\Hermes.exe'
+    Assert-Owner 'Reject untrusted Hermes executable with matching filename' 'hermes' $false
+
     $global:AgentToolFakeListeners = @([pscustomobject]@{ LocalAddress='0.0.0.0'; OwningProcess=3456 })
     Assert-Owner 'Reject wildcard binding' 'antigravity' $false
 

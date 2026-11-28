@@ -187,3 +187,62 @@ test('Codex HUD reads live in-app React Fiber quota when available', () => {
   assert.match(quota.innerHTML, /<span>週額度 \/ 五小額度<\/span>/);
   assert.match(quota.innerHTML, /週額度（每週） 限額剩餘 86% \(已用 14%\).*五小額度（5 小時） 限額剩餘 9% \(已用 91%\)/);
 });
+
+test('Hermes HUD renders GPT quota rings and Hermes cache hit rate in zh-TW and en', () => {
+  for (const lang of ['zh-TW', 'en']) {
+    const box = { innerHTML: '', onclick: null, onchange: null };
+    const pill = { textContent: '', style: {}, title: '', onclick: null };
+    const pillCount = { textContent: '', style: {} };
+    const quota = { innerHTML: '', textContent: '', title: '' };
+    const root = {
+      dataset: {}, id: '', innerHTML: '',
+      classList: { toggle() {} },
+      querySelector(selector) {
+        if (selector === '.box') return box;
+        if (selector === '.pill') return pill;
+        if (selector === '.pill b') return pillCount;
+        if (selector === '.quota') return quota;
+        throw new Error('unexpected selector: ' + selector);
+      },
+    };
+    const document = {
+      readyState: 'loading', title: '', body: { contains: () => true, appendChild() {} },
+      head: { appendChild() {} },
+      createElement: (tag) => tag === 'div' ? root : { textContent: '', id: '' },
+      getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
+    };
+    const window = { __agentToolLang: lang };
+    const context = {
+      document, window, URL, Date, Intl, Set, String, Number, Math,
+      location: { href: 'file:///app/index.html', pathname: '/app/index.html', search: '', hash: '' },
+      setInterval: () => 0, clearInterval: () => {},
+      setTimeout: () => 0, addEventListener: () => {},
+    };
+    vm.runInNewContext(fs.readFileSync('hermes-cache-watch/hud.js', 'utf8'), context, { filename: 'hermes-cache-watch/hud.js', timeout: 1000 });
+    window.__hermesCacheHud({
+      hit: 75, cache: 900, uncached: 300, output: 75, updated: '12:00:00',
+      quota: [{
+        name: '週額度 / 五小額度', plan: 'plus',
+        buckets: [
+          { window: 'week', label: '每週', remaining: 90, used: 10, reset: '12/05 01:54 重置' },
+          { window: '5h', label: '五小時', remaining: 100, used: 0, reset: '11/28 06:54 已重置' },
+        ],
+      }],
+      models: [{ name: 'gpt-5.4', calls: 6, hit: 75, uncached: 300, cache: 900, output: 75, subs: [] }],
+      recent: [{ id: 's-main', title: 'Main <script>', parent: '', agent: '', time: '11-28 12:00', calls: 4, hit: 80, uncached: 200, cache: 800, output: 50 }],
+    });
+    assert.equal(pillCount.textContent, '80%');
+    assert.doesNotMatch(box.innerHTML, /<script>/);
+    if (lang === 'zh-TW') {
+      assert.match(quota.innerHTML, /<span>GPT 額度<\/span>/);
+      assert.match(box.innerHTML, /近 30 天 Hermes 對話/);
+    } else {
+      assert.match(quota.innerHTML, /<span>GPT Quota<\/span>/);
+      assert.match(box.innerHTML, /Hermes 30-day cache hit/);
+    }
+    window.__hermesCacheHud({ hit: 0, cache: 0, uncached: 0, output: 0, updated: '12:00:00', quotaStatus: 'stale', quotaUpdated: '11:59:00', quota: [{ name: '週額度 / 五小額度', buckets: [{ window: 'week', remaining: 90, used: 10, reset: '' }] }], models: [], recent: [] });
+    assert.match(quota.innerHTML, lang === 'en' ? /stale/i : /過期/);
+    window.__hermesCacheHud({ quotaStatus: 'unavailable', quota: [], models: [], recent: [] });
+    assert.match(quota.textContent, lang === 'en' ? /unavailable/i : /不可用/);
+  }
+});

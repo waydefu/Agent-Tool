@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // argv[0] basename of each app's Electron main process on Linux.
-const LINUX_BINARIES = { antigravity: /^antigravity$/, codex: /^ChatGPT$/ };
+const LINUX_BINARIES = { antigravity: /^antigravity$/, codex: /^ChatGPT$/, hermes: /^Hermes$/ };
 
 // Chromium/Electron rewrite their process title, so /proc/pid/cmdline becomes one space-joined
 // string instead of NUL-separated argv. An app path containing spaces then fails the check (closed).
@@ -36,7 +36,7 @@ function linuxOwnerOk(app, port, argvs) {
 
 function createOwnerGuard(app, port, execute = execFileSync, clock = Date.now, ttlMs = 10000,
   platform = process.platform, listArgvs = procArgvs) {
-  if (!['antigravity', 'codex'].includes(app) || !Number.isInteger(port) || port < 1 || port > 65535 || !Number.isFinite(ttlMs) || ttlMs < 0) {
+  if (!['antigravity', 'codex', 'hermes'].includes(app) || !Number.isInteger(port) || port < 1 || port > 65535 || !Number.isFinite(ttlMs) || ttlMs < 0) {
     throw new TypeError('Invalid CDP owner guard configuration');
   }
   let checkedAt = null;
